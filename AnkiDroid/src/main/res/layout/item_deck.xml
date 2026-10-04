@@ -65,6 +65,19 @@
         android:layout_alignParentEnd="true"
         android:layout_centerVertical="true" >
         <com.ichi2.ui.FixedTextView
+            android:id="@+id/deck_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@color/transparent"
+            android:gravity="center"
+            android:paddingEnd="12dip"
+            android:alpha="0.7"
+            android:textSize="14sp"
+            android:visibility="gone"
+            tools:text="6m" />
+
+        <com.ichi2.ui.FixedTextView
             android:id="@+id/deck_new"
             android:contentDescription="@string/deck_picker_new"
             android:layout_width="wrap_content"

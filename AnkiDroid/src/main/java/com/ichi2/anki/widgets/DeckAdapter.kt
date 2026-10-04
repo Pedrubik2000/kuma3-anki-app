@@ -90,6 +90,15 @@ class DeckAdapter(
             }
         }
 
+    /** Milliseconds answered today per deck id (sub-decks included); see DeckTimes. */
+    var timesToday: Map<Long, Long> = emptyMap()
+        set(value) {
+            if (field != value) {
+                field = value
+                notifyDataSetChanged()
+            }
+        }
+
     class ViewHolder(
         val binding: ItemDeckBinding,
     ) : RecyclerView.ViewHolder(binding.root)
@@ -168,6 +177,11 @@ class DeckAdapter(
         binding.deckName.setTextColor(if (node.filtered) deckNameDynColor else deckNameDefaultColor)
 
         // Set the card counts and their colors
+        val timeToday = timesToday[node.did] ?: 0
+        binding.deckTime.text =
+            com.ichi2.anki.leaderboard.DeckTimes
+                .format(timeToday)
+        binding.deckTime.isVisible = timeToday > 0
         binding.deckNew.text = node.newCount.toString()
         binding.deckNew.setTextColor(if (node.newCount == 0) zeroCountColor else newCountColor)
         binding.deckLearn.text = node.lrnCount.toString()

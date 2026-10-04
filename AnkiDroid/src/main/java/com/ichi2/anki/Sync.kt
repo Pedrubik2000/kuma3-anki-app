@@ -189,6 +189,8 @@ private suspend fun handleNormalSync(
             val message = if (syncMedia) CommonString.col_synced_media_in_background else CommonString.sync_database_acknowledge
             deckPicker.showSyncLogMessage(message, output.serverMessage)
             deckPicker.refreshState()
+            com.ichi2.anki.leaderboard.Leaderboard
+                .uploadAfterSync(deckPicker)
             if (syncMedia) {
                 SyncMediaWorker.start(deckPicker, auth2)
             }

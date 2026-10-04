@@ -60,6 +60,10 @@
         android:menuCategory="secondary"
         android:title="@string/model_browser_label"/>
     <item
+        android:id="@+id/action_leaderboard"
+        android:menuCategory="secondary"
+        android:title="Leaderboard" />
+    <item
         android:id="@+id/action_import"
         android:menuCategory="secondary"/>
     <item

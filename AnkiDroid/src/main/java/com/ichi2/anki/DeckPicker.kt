@@ -575,7 +575,9 @@ open class DeckPicker :
                     Timber.d("Right Click on deck recorded!! %d, %f %f", deckId, x, y)
                 },
             )
-        deckPickerBinding.decks.adapter = deckListAdapter
+        deckPickerBinding.decks.adapter =
+            com.ichi2.anki.leaderboard.LeaderboardUi
+                .withFooter(this, deckListAdapter)
         if (Prefs.devBottomNavEnabled) {
             deckPickerBinding.decks.addItemDecoration(
                 DeckHierarchyLinesDecoration(this, deckListAdapter),
@@ -1414,6 +1416,11 @@ open class DeckPicker :
             R.id.action_import -> {
                 Timber.i("DeckPicker:: Import button pressed")
                 showImportDialog()
+                return true
+            }
+            R.id.action_leaderboard -> {
+                com.ichi2.anki.leaderboard.LeaderboardUi
+                    .show(this)
                 return true
             }
             R.id.action_check_database -> {
