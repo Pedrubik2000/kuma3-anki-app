@@ -125,7 +125,7 @@ open class Scheduler(
     fun describeNextStates(states: SchedulingStates): List<String> = col.backend.describeNextStates(states)
 
     private val queuedCards: QueuedCards
-        get() = col.backend.getQueuedCards(fetchLimit = 1, intradayLearningOnly = false)
+        get() = col.backend.getQueuedCards(fetchLimit = 1, intradayLearningOnly = false, skipSchedulingStates = false)
 
     open fun answerCard(
         info: CurrentQueueState,
@@ -732,5 +732,8 @@ fun Collection.computeFsrsParamsRaw(input: ByteArray): ByteArray = backend.compu
 fun Collection.computeOptimalRetentionRaw(input: ByteArray): ByteArray = backend.computeOptimalRetentionRaw(input = input)
 
 fun Collection.evaluateParamsRaw(input: ByteArray): ByteArray = backend.evaluateParamsRaw(input = input)
+
+// JSchoreels FSRS-7 fork: used by the deck options page
+fun Collection.getFsrsNewCardIntervalsRaw(input: ByteArray): ByteArray = backend.getFsrsNewCardIntervalsRaw(input = input)
 
 fun Collection.simulateFsrsReviewRaw(input: ByteArray): ByteArray = backend.simulateFsrsReviewRaw(input = input)

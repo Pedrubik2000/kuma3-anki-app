@@ -24,6 +24,8 @@ import com.ichi2.anki.libanki.getImportAnkiPackagePresetsRaw
 import com.ichi2.anki.libanki.getNotetypeNamesRaw
 import com.ichi2.anki.libanki.sched.computeFsrsParamsRaw
 import com.ichi2.anki.libanki.sched.computeOptimalRetentionRaw
+import com.ichi2.anki.libanki.sched.evaluateParamsRaw
+import com.ichi2.anki.libanki.sched.getFsrsNewCardIntervalsRaw
 import com.ichi2.anki.libanki.sched.simulateFsrsReviewRaw
 import com.ichi2.anki.libanki.stats.cardStatsRaw
 import com.ichi2.anki.libanki.stats.getGraphPreferencesRaw
@@ -114,6 +116,9 @@ val collectionMethods =
         "getIgnoredBeforeCount" to { bytes -> getIgnoredBeforeCountRaw(bytes) },
         "getRetentionWorkload" to { bytes -> getRetentionWorkloadRaw(bytes) },
         "simulateFsrsWorkload" to { bytes -> simulateFsrsWorkloadRaw(bytes) },
+        // JSchoreels FSRS-7 fork additions used by the deck options page
+        "evaluateParams" to { bytes -> evaluateParamsRaw(bytes) },
+        "getFsrsNewCardIntervals" to { bytes -> getFsrsNewCardIntervalsRaw(bytes) },
         // https://github.com/ankitects/anki/pull/4326 -> saveCustomColours should be no-op in mobile clients
         "saveCustomColours" to { bytes -> backendIdentity(bytes) },
         "getCustomColours" to { bytes -> getCustomColoursRaw(bytes) },
