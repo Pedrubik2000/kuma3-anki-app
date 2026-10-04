@@ -34,13 +34,7 @@ object RwkvOffline {
     ) {
         try {
             val model = installModel(context)
-            val replayed =
-                backend.rwkvPrepareOffline(
-                    modelPath = model.absolutePath,
-                    cachePath = "",
-                    allDecks = true,
-                    curveOnly = false,
-                )
+            val replayed = backend.rwkvPrepareOffline(modelPath = model.absolutePath)
             Timber.i("RWKV prepared: %s reviews replayed", replayed)
             showToast(context, "RWKV ready ($replayed reviews)")
         } catch (e: Exception) {
