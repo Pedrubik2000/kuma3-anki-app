@@ -48,6 +48,7 @@ Backend (`kuma3-anki-core`, checked out as `Anki-Android-Backend/anki`):
 | File | Role |
 |---|---|
 | `rslib/src/scheduler/rwkv/offline.rs` | The whole offline layer: runtime, history replay, scoring, the hooks' entry points |
+| `rslib/src/scheduler/rwkv/offline_state.rs` | The state file `collection.rwkv-offline` next to the collection: a start loads it and replays only newer reviews |
 | `rslib/src/scheduler/queue/mod.rs`, `decks/tree.rs`, `scheduler/service/mod.rs`, `scheduler/answering/mod.rs` | One-line hooks that call into `offline.rs` |
 | `proto/anki/scheduler.proto` | `RwkvPrepareOffline`, `RwkvOfflineInstantPassStep` and their messages |
 | `rslib/src/scheduler/fsrs/memory_state.rs` (`repair_foreign_fsrs_memory_states`, the fork's) | FSRS-7 state repair, called from `backend/collection.rs` (open), `sync/collection/chunks.rs` and `backend/sync.rs` |
@@ -118,6 +119,10 @@ signed with a different key cannot be installed over an existing one: sync, then
 
 ## Things to know before changing code
 
+- RWKV keeps a state for every reviewed card (about 90 KB each, the same on the desktop): in
+  memory and in `collection.rwkv-offline`. Fine for thousands of cards; tens of thousands need
+  more memory than a phone has. The state file is ignored after an app update (one full replay)
+  and rewritten after a full replay or every 200 new reviews.
 - The offline layer must never write card data. It only installs in-memory score maps; the one
   intended write is the revlog kind of same-day repeats.
 - `RwkvOfflineInstantPassStep` and the deck options page share generated code: after changing
