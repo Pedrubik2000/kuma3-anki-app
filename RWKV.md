@@ -1,7 +1,7 @@
 # kuma3-anki: AnkiDroid with on-device RWKV-Instant and FSRS-7
 
 This branch (`rwkv`) is AnkiDroid 2.26.0alpha2 built against the
-[JSchoreels FSRS-7 fork of Anki](https://github.com/JSchoreels/anki) (26.09.3+fsrs7), with a
+[JSchoreels FSRS-7 fork of Anki](https://github.com/JSchoreels/anki) (26.09.3+fsrs7, build 96), with a
 small layer that runs the fork's RWKV recall model on the phone, plus a few deck list extras.
 It is a personal build, shared as it is. Nothing here is endorsed by AnkiDroid, Anki, or the
 fork's author.
@@ -13,12 +13,14 @@ If you are an AI assistant asked to change something: read "Where things live" f
 
 | Repository (branch `rwkv`) | Based on | What we changed |
 |---|---|---|
-| [kuma3-anki-core](https://github.com/Pedrubik2000/kuma3-anki-core) | JSchoreels/anki `e26738b` | Rust backend and the deck options web page |
+| [kuma3-anki-core](https://github.com/Pedrubik2000/kuma3-anki-core) | JSchoreels/anki `e26738b` (build 94), merged with `5bd7543` (build 96) | Rust backend and the deck options web page |
 | [kuma3-anki-backend](https://github.com/Pedrubik2000/kuma3-anki-backend) | ankidroid `11cc1de` | Build switches; `anki` submodule points to the fork above |
 | [kuma3-anki-app](https://github.com/Pedrubik2000/kuma3-anki-app) (this one) | ankidroid `v2.26.0alpha2` | The app |
 
 Every change is a normal commit on top of the upstream commit, one per feature:
-`git log upstream-commit..rwkv` in each repository is the complete list.
+`git log upstream-commit..rwkv` in each repository is the complete list. A newer fork release is
+merged into the core's `rwkv` (never rebased), so `git log --first-parent` shows our commits and
+the merges.
 
 ## What it does
 
@@ -27,9 +29,10 @@ Every change is a normal commit on top of the upstream commit, one per feature:
   scores review cards before a review queue or the deck counts are built. Presets with
   "Use RWKV-Instant to choose review cards" then pick cards by predicted recall, as on the desktop.
   RWKV-Curve (answer intervals) and "reschedule" are not implemented on the phone.
-- **FSRS-7 state repair.** Cards that pass through AnkiWeb come back without the fork's `s_int`
-  and `s_fast`. The backend recomputes them from the review history after each sync and on open,
-  without marking the cards as changed.
+- **FSRS-7 state repair** comes from the fork itself (build 96): cards that pass through AnkiWeb
+  come back without the fork's `s_int` and `s_fast`, and the backend recomputes them when the
+  collection is opened and while merging synced reviews, without marking the cards as changed.
+  (Our own repair, used before build 96, was removed so that only one runs.)
 - **Deck options page on phones**: saving works, desktop-only buttons are hidden, a Maintenance
   section has "Rebuild RWKV State" and a status line.
 - **Deck list extras**: a leaderboard (the desktop "Anki Leaderboard" add-on's server; sign in
@@ -45,7 +48,7 @@ Backend (`kuma3-anki-core`, checked out as `Anki-Android-Backend/anki`):
 | `rslib/src/scheduler/rwkv/offline.rs` | The whole offline layer: runtime, history replay, scoring, the hooks' entry points |
 | `rslib/src/scheduler/queue/mod.rs`, `decks/tree.rs`, `scheduler/service/mod.rs`, `scheduler/answering/mod.rs` | One-line hooks that call into `offline.rs` |
 | `proto/anki/scheduler.proto` | `RwkvPrepareOffline`, `RwkvOfflineInstantPassStep` and their messages |
-| `rslib/src/scheduler/fsrs/memory_state.rs` (`repair_stripped_fsrs_memory_states`), `storage/card/mod.rs`, `sync/collection/normal.rs` | FSRS-7 state repair |
+| `rslib/src/scheduler/fsrs/memory_state.rs` (`repair_foreign_fsrs_memory_states`, the fork's) | FSRS-7 state repair, called from `backend/collection.rs` (open), `sync/collection/chunks.rs` and `backend/sync.rs` |
 | `ts/routes/deck-options/` (`RwkvOptions.svelte`, `DeckOptionsPage.svelte`, `lib.ts`) | Deck options page changes |
 | `rslib/src/bin/rwkv_offline_host.rs` | Test program: runs the layer on a collection copy on a PC |
 
@@ -108,7 +111,6 @@ signed with a different key cannot be installed over an existing one: sync, then
   `rwkv_offline_host <collection copy.anki2> <model.bin> [scores.csv] [answer]`. It replays,
   scores, rebuilds and (with `answer`) answers four cards and compares the incrementally updated
   model state with a fresh replay. Use a copy of a collection, never the live file.
-  `rwkv_offline_host <copy> repair` runs the FSRS-7 state repair.
 - **App**: `./gradlew :AnkiDroid:compileFullDebugKotlin` compiles; AnkiDroid's pre-commit hook
   runs ktlint (`./gradlew ktlintFormat` fixes most findings).
 
