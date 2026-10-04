@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.ichi2.anki.DeckPicker
 import com.ichi2.anki.launchCatchingTask
 import com.ichi2.anki.withProgress
+import timber.log.Timber
 import java.lang.ref.WeakReference
 import java.text.DateFormat
 import java.util.Date
@@ -124,6 +125,15 @@ private class LeaderboardFooterAdapter(
         val density = context.resources.displayMetrics.density
         val margin = (12 * density).toInt()
         holder.frame.removeAllViews()
+        // The board is built from a saved server reply. If it cannot be drawn, leave the row
+        // empty: an exception here would crash the deck list on every start.
+        val table =
+            try {
+                boardTable(context, board, maxWidth = (list?.width ?: 0) - margin * 2)
+            } catch (e: Exception) {
+                Timber.w(e, "leaderboard not shown")
+                return
+            }
         holder.frame.addView(
             // centred in the deck list, like the "Studied N cards" line; the caption starts at
             // the table's left edge
@@ -142,7 +152,7 @@ private class LeaderboardFooterAdapter(
                                 setPadding((8 * density).toInt(), 0, 0, 0)
                             },
                         )
-                        addView(boardTable(context, board, maxWidth = (list?.width ?: 0) - margin * 2))
+                        addView(table)
                     },
                     LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT),
                 )
@@ -246,11 +256,9 @@ private fun tableWithColumns(
         val (band, letter) = Leaderboard.grade(row.rank, total)
         val shield =
             row.league?.let { league ->
-                picture(
-                    context,
-                    "league_shields/${league.lowercase(Locale.US)}_%02d.png".format(SHIELD_NUMBER.getValue(band)),
-                    22,
-                )
+                // the league name comes from the server: it must not be part of a format string
+                val number = String.format(Locale.US, "%02d", SHIELD_NUMBER.getValue(band))
+                picture(context, "league_shields/${league.lowercase(Locale.US)}_$number.png", 22)
             }
         val country = Leaderboard.countries[row.country]
         val secondsPerCard = if (row.reviews > 0) (row.minutes * 60).toLong() / row.reviews else 0
