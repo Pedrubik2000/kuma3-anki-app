@@ -402,6 +402,9 @@ object CollectionManager {
                     databaseBuilder = { backend -> createDatabaseUsingRustBackend(backend) },
                     backend = backend,
                 )
+            if (!isRunningAsUnitTest && !isRobolectric) {
+                RwkvOffline.prepare(appContext, backend!!)
+            }
         }
     }
 
