@@ -338,6 +338,17 @@ suspend fun monitorMediaSync(deckPicker: DeckPicker) {
 
     fun showMessage(msg: String) = deckPicker.showSnackbar(msg, Snackbar.LENGTH_SHORT)
 
+    // stop monitoring when the activity is destroyed: the loop below holds the activity
+    withContext(Dispatchers.Main) {
+        deckPicker.lifecycle.addObserver(
+            object : androidx.lifecycle.DefaultLifecycleObserver {
+                override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) {
+                    scope.cancel()
+                }
+            },
+        )
+    }
+
     scope.launch {
         try {
             while (true) {

@@ -26,6 +26,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup.MarginLayoutParams
+import android.view.ViewTreeObserver
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
@@ -62,7 +63,9 @@ import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 import androidx.fragment.app.commitNow
+import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -719,9 +722,21 @@ open class DeckPicker :
         }
         // Insets move the FAB's ancestors without changing the FAB's bounds within its parent.
         // Wait until the whole hierarchy is laid out before reading positions in the window.
-        deckPickerBinding.root.viewTreeObserver.addOnGlobalLayoutListener {
-            setRecyclerViewBottomPaddingAbove(listAnchor())
-        }
+        val globalLayoutListener =
+            ViewTreeObserver.OnGlobalLayoutListener {
+                setRecyclerViewBottomPaddingAbove(listAnchor())
+            }
+        deckPickerBinding.root.viewTreeObserver.addOnGlobalLayoutListener(globalLayoutListener)
+        // The listener captures this activity: remove it on destroy or the window keeps the
+        // destroyed activity alive (LeakCanary: DeckPicker leaked via mOnGlobalLayoutListeners).
+        // Read viewTreeObserver again here: the one captured before attach may no longer be alive.
+        lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onDestroy(owner: LifecycleOwner) {
+                    deckPickerBinding.root.viewTreeObserver.removeOnGlobalLayoutListener(globalLayoutListener)
+                }
+            },
+        )
         deckPickerBinding.reviewSummaryTextView.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
             // exclude paddingBottom: it holds the edge-to-edge inset, which is already applied
             raiseFabAboveSummary(view.height - view.paddingBottom)
