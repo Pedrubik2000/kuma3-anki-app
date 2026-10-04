@@ -54,11 +54,18 @@ App (this repository):
 | File | Role |
 |---|---|
 | `anki-common/.../RwkvOffline.kt` | Installs `assets/rwkv/model.bin`, calls `rwkvPrepareOffline` when the collection opens |
-| `AnkiDroid/.../leaderboard/Leaderboard.kt` | Leaderboard client: sign-in, stats, upload, parsing the board |
-| `AnkiDroid/.../leaderboard/LeaderboardUi.kt` | The board (table, dialogs) and the code that adds rows below the decks |
-| `AnkiDroid/.../leaderboard/Heatmap.kt` | Heatmap data, drawing, and its row below the decks |
-| `AnkiDroid/.../leaderboard/DeckTimes.kt` | Time answered today per deck |
+| `AnkiDroid/.../heatmap/` | Review heatmap: `HeatmapData.kt` (counts from the collection), `HeatmapGrid.kt` (drawing, taps), `HeatmapFooter.kt` (its row below the decks: buttons, caption, stats line) |
+| `AnkiDroid/.../decktimes/DeckTimes.kt` | Time answered today per deck, shown on the deck rows |
+| `AnkiDroid/.../leaderboard/` | Leaderboard: `Leaderboard.kt` (account, upload, reading the board), `LeaderboardStats.kt` (the numbers, as the add-on's Stats.py), `LeaderboardServer.kt` (HTTP), `BoardTable.kt` (the table), `LeaderboardFooter.kt` (its row below the decks), `LeaderboardDialogs.kt` (sign-in, board, options) |
 | `DeckPicker.kt`, `Sync.kt`, `widgets/DeckAdapter.kt`, `pages/CongratsPage.kt`, `pages/PostRequestHandler.kt` | Small hooks into existing screens |
+
+The three deck list extras are independent. One place in `DeckPicker.kt` hooks them in
+(`DeckTimes.attach(...)` and the `ConcatAdapter(deckListAdapter, HeatmapFooter(this), LeaderboardFooter(this))`);
+to drop one, remove it there and delete its package (plus, for deck times, `deck_time` in
+`item_deck.xml` and `timesToday` in `DeckAdapter.kt`; for the leaderboard, the menu item,
+`R.id.action_leaderboard` in `DeckPicker.kt` and `uploadAfterSync` in `Sync.kt`). The heatmap and
+deck times reload whenever the deck list reloads its counts (`flowOfDecksReloaded`: on resume,
+after a sync).
 
 ## Build
 

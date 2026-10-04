@@ -1,11 +1,42 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package com.ichi2.anki.leaderboard
+package com.ichi2.anki.decktimes
 
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.ichi2.anki.CollectionManager.withCol
+import com.ichi2.anki.DeckPicker
+import com.ichi2.anki.widgets.DeckAdapter
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import timber.log.Timber
 
-/** Time spent answering cards today, per deck, shown on the deck list's rows. */
+/**
+ * Time spent answering cards today, per deck, shown on the deck list's rows (the `deck_time`
+ * text in `item_deck.xml`, filled by [DeckAdapter.timesToday]).
+ */
 object DeckTimes {
+    /** Reload the times whenever the deck list reloads its counts (on resume, after a sync). */
+    fun attach(
+        deckPicker: DeckPicker,
+        adapter: DeckAdapter,
+    ) {
+        deckPicker.lifecycleScope.launch {
+            deckPicker.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                deckPicker.viewModel.flowOfDecksReloaded.collect {
+                    try {
+                        adapter.timesToday = load()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.w(e, "deck times unavailable")
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * Milliseconds answered today (since Anki's day rollover) by deck id. A card counts for its
      * home deck, and every deck includes its sub-decks, like the due counts.

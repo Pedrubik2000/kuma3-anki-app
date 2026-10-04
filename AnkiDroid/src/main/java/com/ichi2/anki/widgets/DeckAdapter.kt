@@ -90,7 +90,7 @@ class DeckAdapter(
             }
         }
 
-    /** Milliseconds answered today per deck id (sub-decks included); see DeckTimes. */
+    /** Milliseconds answered today per deck id (sub-decks included); set by decktimes/DeckTimes.kt. */
     var timesToday: Map<Long, Long> = emptyMap()
         set(value) {
             if (field != value) {
@@ -179,7 +179,7 @@ class DeckAdapter(
         // Set the card counts and their colors
         val timeToday = timesToday[node.did] ?: 0
         binding.deckTime.text =
-            com.ichi2.anki.leaderboard.DeckTimes
+            com.ichi2.anki.decktimes.DeckTimes
                 .format(timeToday)
         binding.deckTime.isVisible = timeToday > 0
         binding.deckNew.text = node.newCount.toString()

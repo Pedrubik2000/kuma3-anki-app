@@ -575,9 +575,16 @@ open class DeckPicker :
                     Timber.d("Right Click on deck recorded!! %d, %f %f", deckId, x, y)
                 },
             )
+        com.ichi2.anki.decktimes.DeckTimes
+            .attach(this, deckListAdapter)
         deckPickerBinding.decks.adapter =
-            com.ichi2.anki.leaderboard.LeaderboardUi
-                .withFooter(this, deckListAdapter)
+            androidx.recyclerview.widget.ConcatAdapter(
+                deckListAdapter,
+                com.ichi2.anki.heatmap
+                    .HeatmapFooter(this),
+                com.ichi2.anki.leaderboard
+                    .LeaderboardFooter(this),
+            )
         if (Prefs.devBottomNavEnabled) {
             deckPickerBinding.decks.addItemDecoration(
                 DeckHierarchyLinesDecoration(this, deckListAdapter),
@@ -1419,8 +1426,8 @@ open class DeckPicker :
                 return true
             }
             R.id.action_leaderboard -> {
-                com.ichi2.anki.leaderboard.LeaderboardUi
-                    .show(this)
+                com.ichi2.anki.leaderboard
+                    .showLeaderboard(this)
                 return true
             }
             R.id.action_check_database -> {
