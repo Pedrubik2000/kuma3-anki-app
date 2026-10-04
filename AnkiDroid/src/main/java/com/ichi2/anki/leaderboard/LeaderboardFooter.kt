@@ -8,14 +8,18 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.ichi2.anki.DeckPicker
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.lang.ref.WeakReference
 
 /**
  * One row below the decks (DeckPicker puts it in a ConcatAdapter after the deck list): the group
- * board. Empty until signed in and a board was received. Tapping it opens the board dialog.
+ * board, at most [Leaderboard.maxUsers] rows ([Leaderboard.homeRows]). Empty until signed in and a
+ * board was received. Tapping it opens the board dialog.
  */
 class LeaderboardFooter(
     private val deckPicker: DeckPicker,
@@ -63,10 +67,21 @@ class LeaderboardFooter(
         list = null
     }
 
+    /** Read the board in the background (the saved reply is large), then redraw. */
     private fun reload() {
-        board = if (Leaderboard.isSignedIn) Leaderboard.cachedBoard() else null
-        @Suppress("NotifyDataSetChanged") // a single row
-        notifyDataSetChanged()
+        deckPicker.lifecycleScope.launch {
+            board =
+                try {
+                    if (Leaderboard.isSignedIn) Leaderboard.board() else null
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.w(e, "leaderboard not read")
+                    null
+                }
+            @Suppress("NotifyDataSetChanged") // a single row
+            notifyDataSetChanged()
+        }
     }
 
     override fun getItemCount() = if (board == null) 0 else 1
@@ -94,7 +109,7 @@ class LeaderboardFooter(
         // empty: an exception here would crash the deck list on every start.
         val table =
             try {
-                boardTable(context, board, maxWidth = (list?.width ?: 0) - margin * 2)
+                boardTable(context, Leaderboard.homeRows(board), board.rows.size, maxWidth = (list?.width ?: 0) - margin * 2)
             } catch (e: Exception) {
                 Timber.w(e, "leaderboard not shown")
                 return

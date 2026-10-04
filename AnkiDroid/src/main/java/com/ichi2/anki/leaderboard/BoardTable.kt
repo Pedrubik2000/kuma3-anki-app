@@ -9,19 +9,25 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
 import android.widget.TableLayout
 import android.widget.TableRow
 import android.widget.TextView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
 /*
- * The board as a table, drawn like the add-on's: used below the decks (LeaderboardFooter.kt) and
- * in the board dialog (LeaderboardDialogs.kt).
+ * The board, drawn like the add-on's: a table below the decks (LeaderboardFooter.kt, a few rows)
+ * and a scrolling list in the board dialog (LeaderboardDialogs.kt, the whole group, which can have
+ * over a thousand members: only the rows on screen are drawn).
  */
 
 internal fun boardTitle(board: Leaderboard.Board): String {
@@ -35,46 +41,177 @@ internal fun boardTitle(board: Leaderboard.Board): String {
 }
 
 /**
- * The board, with as many of the add-on's columns as fit in [maxWidth] pixels: all of them; then
- * without "Past 31 days" and the country's name (its flag stays); then also without retention
- * and with short headers; then (phones) tighter, with the streak as days only; then without the
- * time. If even that is too wide, it scrolls sideways.
+ * [rows] of a board of [total] members as a table, with as many of the add-on's columns as fit in
+ * [maxWidth] pixels: all of them; then without "Past 31 days" and the country's name (its flag
+ * stays); then also without retention and with short headers; then (phones) tighter, with the
+ * streak as days only; then without the time. If even that is too wide, it scrolls sideways.
+ * Every row is drawn: keep [rows] short.
  */
 internal fun boardTable(
     context: Context,
-    board: Leaderboard.Board,
+    rows: List<Leaderboard.Row>,
+    total: Int,
     maxWidth: Int,
 ): View {
-    var table = tableWithColumns(context, board, level = 0)
-    for (level in 1..4) {
-        table.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-        if (maxWidth <= 0 || table.measuredWidth <= maxWidth) break
-        table = tableWithColumns(context, board, level)
-    }
+    val (table, _) = fittingTable(context, rows, total, maxWidth)
+    // a scroller takes every tap for itself (the board below the decks opens the dialog on a
+    // tap): only use one when the table really is too wide
+    if (maxWidth <= 0 || table.measuredWidth <= maxWidth) return table
     return HorizontalScrollView(context).apply {
         isHorizontalScrollBarEnabled = false
         addView(table)
     }
 }
 
-private fun tableWithColumns(
+/**
+ * The whole [board] as a list that draws only the rows on screen, at most [maxHeight] pixels
+ * high, opened at the user's row. The columns are sized from a sample (the top rows, the user and
+ * the longest names); a longer name elsewhere is shortened with "…".
+ */
+internal fun boardList(
     context: Context,
     board: Leaderboard.Board,
+    maxWidth: Int,
+    maxHeight: Int,
+): View {
+    val rows = board.rows
+    val total = rows.size
+    val withMedals = Leaderboard.showMedals
+    val sample =
+        (rows.take(30) + rows.filter { it.me } + rows.sortedByDescending { it.displayName(withMedals).length }.take(10))
+            .distinct()
+    val (table, level) = fittingTable(context, sample, total, maxWidth)
+    val header = table.getChildAt(0) as TableRow
+    val widths = IntArray(header.childCount) { header.getChildAt(it).measuredWidth }
+    val rowHeight = (table.getChildAt(1)?.measuredHeight ?: header.measuredHeight).coerceAtLeast(1)
+
+    fun line(cells: List<TextView>) =
+        LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            cells.forEachIndexed { i, cell ->
+                addView(cell, LinearLayout.LayoutParams(widths.getOrElse(i) { ViewGroup.LayoutParams.WRAP_CONTENT }, rowHeight))
+            }
+        }
+
+    val list =
+        RecyclerView(context).apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter =
+                object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+                    override fun getItemCount() = rows.size
+
+                    override fun onCreateViewHolder(
+                        parent: ViewGroup,
+                        viewType: Int,
+                    ) = object : RecyclerView.ViewHolder(
+                        FrameLayoutRow(parent.context),
+                    ) {}
+
+                    override fun onBindViewHolder(
+                        holder: RecyclerView.ViewHolder,
+                        position: Int,
+                    ) {
+                        val frame = holder.itemView as FrameLayoutRow
+                        val row = rows[position]
+                        frame.removeAllViews()
+                        frame.addView(line(cells(context, row, total, level)).apply { setBackgroundColor(rowColor(row)) })
+                    }
+                }
+            val me = rows.indexOfFirst { it.me }
+            if (me > 0) (layoutManager as LinearLayoutManager).scrollToPositionWithOffset(me, rowHeight * 3)
+        }
+    val height = minOf(maxHeight, rowHeight * rows.size)
+    return HorizontalScrollView(context).apply {
+        isHorizontalScrollBarEnabled = false
+        addView(
+            LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(line(cells(context, null, total, level)))
+                addView(list, LinearLayout.LayoutParams(widths.sum(), height))
+            },
+        )
+    }
+}
+
+/** One list row: a frame the row's cells are put into. */
+private class FrameLayoutRow(
+    context: Context,
+) : android.widget.FrameLayout(context) {
+    init {
+        layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+}
+
+/** The table of [rows] with the most columns that fit in [maxWidth] (measured), and its level. */
+private fun fittingTable(
+    context: Context,
+    rows: List<Leaderboard.Row>,
+    total: Int,
+    maxWidth: Int,
+): Pair<TableLayout, Int> {
+    var level = 0
+    var table = tableWithColumns(context, rows, total, level)
+    while (true) {
+        table.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        if (maxWidth <= 0 || table.measuredWidth <= maxWidth || level == 4) break
+        level++
+        table = tableWithColumns(context, rows, total, level)
+    }
+    return table to level
+}
+
+private fun tableWithColumns(
+    context: Context,
+    rows: List<Leaderboard.Row>,
+    total: Int,
     level: Int,
 ): TableLayout {
+    val table = TableLayout(context)
+    table.addView(TableRow(context).apply { cells(context, null, total, level).forEach { addView(it) } })
+    for (row in rows) {
+        table.addView(
+            TableRow(context).apply {
+                setBackgroundColor(rowColor(row))
+                cells(context, row, total, level).forEach { addView(it) }
+            },
+        )
+    }
+    return table
+}
+
+/** Gold, silver and bronze for the first three active members, the user's colour, then stripes. */
+private fun rowColor(row: Leaderboard.Row): Int {
+    val medal = row.active && row.rank <= 3
+    return when {
+        medal && row.rank == 1 -> GOLD
+        medal && row.rank == 2 -> SILVER
+        medal && row.rank == 3 -> BRONZE
+        row.me -> MINE
+        row.rank % 2 == 0 -> ZEBRA
+        else -> Color.TRANSPARENT
+    }
+}
+
+/** The cells of one row ([row] null: the header) at a column [level] (see [boardTable]). */
+private fun cells(
+    context: Context,
+    row: Leaderboard.Row?,
+    total: Int,
+    level: Int,
+): List<TextView> {
     val density = context.resources.displayMetrics.density
     val cell = ((if (level >= 3) 4 else 7) * density).toInt()
+    val medal = row != null && row.active && row.rank <= 3
 
     fun text(
         value: String,
-        row: Leaderboard.Row?,
-        medal: Boolean,
         start: Boolean = false,
         icon: Drawable? = null,
     ) = TextView(context).apply {
         text = value
         textSize = if (row == null) 12f else 14f
         maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
         setPadding(cell, cell * 3 / 4, cell, cell * 3 / 4)
         gravity = (if (start) Gravity.START else Gravity.END) or Gravity.CENTER_VERTICAL
         if (row == null) alpha = 0.7f
@@ -94,72 +231,44 @@ private fun tableWithColumns(
     val showCountryName = level == 0
     val showRetention = level <= 1
     val showTime = level <= 3
-    val table = TableLayout(context)
-    table.addView(
-        TableRow(context).apply {
-            fun header(
-                title: String,
-                start: Boolean = false,
-            ) = addView(text(title, null, medal = false, start = start))
-            header("Rank")
-            header("Username", start = true)
-            header(if (level < 2) "Reviews today" else "Reviews")
-            if (showTime) header(if (level < 2) "Minutes today" else "Time")
-            header("Streak")
-            if (showMonth) header("Past 31 days")
-            if (showRetention) header(if (level == 0) "Retention %" else "Ret. %")
-            header(if (showCountryName) "Country" else "", start = true)
-        },
-    )
-    val total = board.rows.size
-    board.rows.forEachIndexed { index, row ->
-        val medal = row.active && row.rank <= 3
-        val (band, letter) = grade(row.rank, total)
-        val shield =
-            row.league?.let { league ->
-                // the league name comes from the server: it must not be part of a format string
-                val number = String.format(Locale.US, "%02d", SHIELD_NUMBER.getValue(band))
-                picture(context, "league_shields/${league.lowercase(Locale.US)}_$number.png", 22)
-            }
-        val country = Leaderboard.countries[row.country]
-        val secondsPerCard = if (row.reviews > 0) (row.minutes * 60).toLong() / row.reviews else 0
-        val minutes = row.minutes.toInt()
-        table.addView(
-            TableRow(context).apply {
-                setBackgroundColor(
-                    when {
-                        medal && row.rank == 1 -> GOLD
-                        medal && row.rank == 2 -> SILVER
-                        medal && row.rank == 3 -> BRONZE
-                        row.me -> MINE
-                        index % 2 == 1 -> ZEBRA
-                        else -> Color.TRANSPARENT
-                    },
-                )
-                addView(text("$letter  ${row.rank}", row, medal, icon = shield))
-                addView(text(row.name, row, medal, start = true))
-                addView(text(String.format(Locale.US, "%,d rev (%dsec)", row.reviews, secondsPerCard), row, medal))
-                if (showTime) addView(text("⏱ %02d:%02d".format(minutes / 60, minutes % 60), row, medal))
-                addView(text(if (level >= 3) shortStreak(row.streak) else streakText(row.streak), row, medal))
-                if (showMonth) {
-                    addView(text(String.format(Locale.US, "%,d /d (%,d rev)", row.month / 31, row.month), row, medal))
-                }
-                if (showRetention) addView(text(String.format(Locale.US, "%.1f%%", row.retention), row, medal))
-                // "Country" is the add-on's value for "not set"
-                val countryName = country?.name ?: row.country.takeUnless { it == "Country" } ?: ""
-                addView(
-                    text(
-                        if (showCountryName) countryName else "",
-                        row,
-                        medal,
-                        start = true,
-                        icon = country?.flag?.let { picture(context, "country/$it", 16) },
-                    ),
-                )
-            },
+    if (row == null) {
+        return listOfNotNull(
+            text("Rank"),
+            text("Username", start = true),
+            text(if (level < 2) "Reviews today" else "Reviews"),
+            text(if (level < 2) "Minutes today" else "Time").takeIf { showTime },
+            text("Streak"),
+            text("Past 31 days").takeIf { showMonth },
+            text(if (level == 0) "Retention %" else "Ret. %").takeIf { showRetention },
+            text(if (showCountryName) "Country" else "", start = true),
         )
     }
-    return table
+    val (band, letter) = grade(row.rank, total)
+    val shield =
+        row.league?.let { league ->
+            // the league name comes from the server: it must not be part of a format string
+            val number = String.format(Locale.US, "%02d", SHIELD_NUMBER.getValue(band))
+            picture(context, "league_shields/${league.lowercase(Locale.US)}_$number.png", 22)
+        }
+    val country = Leaderboard.countries[row.country]
+    val secondsPerCard = if (row.reviews > 0) (row.minutes * 60).toLong() / row.reviews else 0
+    val minutes = row.minutes.toInt()
+    // "Country" is the add-on's value for "not set"
+    val countryName = country?.name ?: row.country.takeUnless { it == "Country" } ?: ""
+    return listOfNotNull(
+        text("$letter  ${row.rank}", icon = shield),
+        text(row.displayName(Leaderboard.showMedals), start = true),
+        text(String.format(Locale.US, "%,d rev (%dsec)", row.reviews, secondsPerCard)),
+        text("⏱ %02d:%02d".format(minutes / 60, minutes % 60)).takeIf { showTime },
+        text(if (level >= 3) shortStreak(row.streak) else streakText(row.streak)),
+        text(String.format(Locale.US, "%,d /d (%,d rev)", row.month / 31, row.month)).takeIf { showMonth },
+        text(String.format(Locale.US, "%.1f%%", row.retention)).takeIf { showRetention },
+        text(
+            if (showCountryName) countryName else "",
+            start = true,
+            icon = country?.flag?.let { picture(context, "country/$it", 16) },
+        ),
+    )
 }
 
 /** Row colours of the add-on's boards: gold, silver, bronze, then alternating. */

@@ -36,7 +36,9 @@ the merges.
 - **Deck options page on phones**: saving works, desktop-only buttons are hidden, a Maintenance
   section has "Rebuild RWKV State" and a status line.
 - **Deck list extras**: a leaderboard (the desktop "Anki Leaderboard" add-on's server; sign in
-  from the menu), a review heatmap (year or month), and the time answered today on each deck row.
+  from the menu; Leaderboard > Options has the add-on's settings: users on the home screen, focus
+  on me, league medals, upload when leaving reviews), a review heatmap (year or month), and the
+  time answered today on each deck row.
 - **Custom study** button on the finished-deck screen.
 
 ## Where things live
@@ -125,7 +127,9 @@ signed with a different key cannot be installed over an existing one: sync, then
   `pages/PostRequestHandler.kt`, or the app answers "unhandled method".
 - Tablets use `res/menu-xlarge/` and a two-pane deck list; check both layouts.
 - The leaderboard talks to a third-party server as an unofficial client and identifies itself as
-  the desktop add-on's version.
+  the desktop add-on's version. Its reply is the whole leaderboard (over 20,000 users, a few MB):
+  read it only through `Leaderboard.board()` (background, cached), and never draw a whole group as
+  a table (some groups have over 1,000 members): the dialog uses a list that draws only visible rows.
 
 ## Licences
 

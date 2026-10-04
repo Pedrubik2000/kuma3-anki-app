@@ -1520,6 +1520,9 @@ open class DeckPicker :
     }
 
     private fun processReviewResults(resultCode: Int) {
+        // the reviewer was left: upload the leaderboard numbers (an option of the leaderboard)
+        com.ichi2.anki.leaderboard.Leaderboard
+            .uploadAfterReviews(this)
         if (resultCode == AbstractFlashcardViewer.RESULT_NO_MORE_CARDS) {
             CongratsPage.onReviewsCompleted(this, getColUnsafe.sched.totalCount() == 0)
             fragment?.refreshInterface()

@@ -25,11 +25,15 @@ import java.time.LocalDateTime
  * Does what the add-on's "Sync and update" does: computes today's numbers from the review log
  * (LeaderboardStats.kt, same queries as its Stats.py), posts them (LeaderboardServer.kt), and
  * keeps the server's reply, which is the board. The numbers are uploaded after each AnkiWeb sync,
- * when this device's review log is most complete, and when the user refreshes the board.
+ * when this device's review log is most complete, when the user leaves the reviewer (an option,
+ * like the add-on's "Sync when deck is finished") and when the user refreshes the board.
  *
- * This file: the account, the upload, and reading the board from the saved reply. The board is
- * drawn by BoardTable.kt, below the decks by LeaderboardFooter.kt and in the dialogs of
- * LeaderboardDialogs.kt.
+ * The reply is the whole leaderboard (over 20,000 users, a few MB): it is read in the
+ * background and only once per change ([board]), never on the main thread.
+ *
+ * This file: the account, the options, the upload, and reading the board from the saved reply.
+ * The board is drawn by BoardTable.kt, below the decks by LeaderboardFooter.kt and in the
+ * dialogs of LeaderboardDialogs.kt.
  */
 object Leaderboard {
     private const val KEY_USERNAME = "username"
@@ -39,9 +43,19 @@ object Leaderboard {
     private const val KEY_GROUP = "group"
     private const val KEY_NEW_DAY = "newDayHour"
     private const val KEY_UPDATED = "updatedMillis"
+    private const val KEY_MAX_USERS = "maxUsers"
+    private const val KEY_FOCUS_ON_USER = "focusOnUser"
+    private const val KEY_SHOW_MEDALS = "showMedals"
+    private const val KEY_UPLOAD_AFTER_REVIEWS = "uploadAfterReviews"
 
     /** The add-on's default "new day" hour. */
     private const val DEFAULT_NEW_DAY_HOUR = 4
+
+    /** The add-on's limit for its home-screen board. */
+    const val MAX_HOME_USERS = 100
+
+    /** Leaving the reviewer again within this time does not upload again. */
+    private const val UPLOAD_AFTER_REVIEWS_INTERVAL_MILLIS = 60_000L
 
     data class Row(
         val rank: Int,
@@ -59,7 +73,25 @@ object Leaderboard {
         val me: Boolean,
         /** False for members who have not synced since the start of yesterday (shown with zeros). */
         val active: Boolean,
-    )
+        /** League medals won in past seasons. */
+        val gold: Int = 0,
+        val silver: Int = 0,
+        val bronze: Int = 0,
+    ) {
+        /** The name as the add-on shows it, with medals when [withMedals]: "Molas | 2🥇 🥉". */
+        fun displayName(withMedals: Boolean): String {
+            if (!withMedals || gold + silver + bronze == 0) return name
+
+            fun count(n: Int) = if (n == 1) "" else n.toString()
+            val medals =
+                listOfNotNull(
+                    "${count(gold)}🥇".takeIf { gold > 0 },
+                    "${count(silver)}🥈".takeIf { silver > 0 },
+                    "${count(bronze)}🥉".takeIf { bronze > 0 },
+                )
+            return "$name | " + medals.joinToString(" ")
+        }
+    }
 
     data class Board(
         val group: String,
@@ -110,6 +142,28 @@ object Leaderboard {
         get() = prefs.getString(KEY_GROUP, null) ?: groups.firstOrNull() ?: ""
         set(value) = prefs.edit { putString(KEY_GROUP, value) }
 
+    // --- options, as in the add-on's Leaderboard > Config (same defaults) ---
+
+    /** "Maximum number of users on the home screen Leaderboard". */
+    var maxUsers: Int
+        get() = prefs.getInt(KEY_MAX_USERS, 5).coerceIn(1, MAX_HOME_USERS)
+        set(value) = prefs.edit { putInt(KEY_MAX_USERS, value.coerceIn(1, MAX_HOME_USERS)) }
+
+    /** "Focus on user": the home-screen board shows the rows around the user, not the top. */
+    var focusOnUser: Boolean
+        get() = prefs.getBoolean(KEY_FOCUS_ON_USER, true)
+        set(value) = prefs.edit { putBoolean(KEY_FOCUS_ON_USER, value) }
+
+    /** "Show league medals next to username". */
+    var showMedals: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_MEDALS, true)
+        set(value) = prefs.edit { putBoolean(KEY_SHOW_MEDALS, value) }
+
+    /** "Sync when deck is finished": upload when the user leaves the reviewer. */
+    var uploadAfterReviews: Boolean
+        get() = prefs.getBoolean(KEY_UPLOAD_AFTER_REVIEWS, true)
+        set(value) = prefs.edit { putBoolean(KEY_UPLOAD_AFTER_REVIEWS, value) }
+
     private val newDayHour: Int get() = prefs.getInt(KEY_NEW_DAY, DEFAULT_NEW_DAY_HOUR)
 
     /** Signs in with the leaderboard account and loads its country and groups. */
@@ -128,11 +182,16 @@ object Leaderboard {
             putString(KEY_GROUPS, (info.optJSONArray(1) ?: JSONArray()).toString())
             remove(KEY_GROUP)
         }
+        memo = null
     }
 
+    /** Forgets the account and the board; the options stay. */
     fun signOut() {
-        prefs.edit { clear() }
+        prefs.edit {
+            for (key in listOf(KEY_USERNAME, KEY_TOKEN, KEY_COUNTRY, KEY_GROUPS, KEY_GROUP, KEY_UPDATED)) remove(key)
+        }
         cacheFile.delete()
+        memo = null
     }
 
     /** Uploads this device's numbers and returns the board from the server's reply. */
@@ -166,12 +225,27 @@ object Leaderboard {
             cacheFile.writeText(reply)
             prefs.edit { putLong(KEY_UPDATED, System.currentTimeMillis()) }
         }
-        return checkNotNull(cachedBoard())
+        return checkNotNull(board())
     }
 
     /** Called after a successful AnkiWeb sync. */
     fun uploadAfterSync(activity: FragmentActivity) {
         if (!isSignedIn) return
+        upload(activity)
+    }
+
+    private var lastReviewUploadMillis = 0L
+
+    /** Called when the user leaves the reviewer ([uploadAfterReviews]). */
+    fun uploadAfterReviews(activity: FragmentActivity) {
+        if (!isSignedIn || !uploadAfterReviews) return
+        val now = System.currentTimeMillis()
+        if (now - lastReviewUploadMillis < UPLOAD_AFTER_REVIEWS_INTERVAL_MILLIS) return
+        lastReviewUploadMillis = now
+        upload(activity)
+    }
+
+    private fun upload(activity: FragmentActivity) {
         activity.lifecycleScope.launch {
             try {
                 sync()
@@ -183,11 +257,41 @@ object Leaderboard {
     }
 
     /**
+     * The rows for the board below the decks: at most [maxUsers]; with [focusOnUser], the ones
+     * around the user (as the add-on's home screen), otherwise the top ones.
+     */
+    fun homeRows(board: Board): List<Row> {
+        val rows = board.rows
+        val max = maxUsers
+        if (rows.size <= max) return rows
+        val me = rows.indexOfFirst { it.me }
+        if (!focusOnUser || me < 0) return rows.take(max)
+        val start = (me - max / 2).coerceIn(0, rows.size - max)
+        return rows.subList(start, start + max)
+    }
+
+    private class Memo(
+        val key: String,
+        val board: Board,
+    )
+
+    @Volatile
+    private var memo: Memo? = null
+
+    /**
      * The group board from the last server reply, with the add-on's home-screen rules: members who
      * synced since the start of yesterday, by reviews; members idle for up to 30 days follow with
-     * zeros.
+     * zeros. Read in the background, and again only when the reply, the group or the day changes.
      */
-    fun cachedBoard(): Board? {
+    suspend fun board(): Board? =
+        withContext(Dispatchers.Default) {
+            val dayStart = dayStart(LocalDateTime.now(), newDayHour)
+            val key = listOf(group, username, cacheFile.lastModified(), prefs.getLong(KEY_UPDATED, 0), dayStart).joinToString("|")
+            memo?.takeIf { it.key == key }?.let { return@withContext it.board }
+            readBoard(dayStart)?.also { memo = Memo(key, it) }
+        }
+
+    private fun readBoard(dayStart: LocalDateTime): Board? {
         val reply =
             try {
                 JSONArray(cacheFile.readText())
@@ -195,17 +299,28 @@ object Leaderboard {
                 return null
             }
         val wanted = group.replace(" ", "")
-        val dayStart = dayStart(LocalDateTime.now(), newDayHour)
         val since = dayStart.minusDays(1)
         val monthAgo = dayStart.minusDays(30)
         val active = mutableListOf<Row>()
         val idle = mutableListOf<Pair<LocalDateTime, Row>>()
         val users = reply.optJSONArray(0) ?: JSONArray()
         val leagues = HashMap<String, String>()
+        // league history: {"gold": n, "silver": n, "bronze": n, ...}
+        val medals = HashMap<String, Triple<Int, Int, Int>>()
         (reply.optJSONArray(1) ?: JSONArray()).let { league ->
             for (i in 0 until league.length()) {
                 val item = league.optJSONArray(i) ?: continue
-                if (!item.isNull(5)) leagues[item.optString(0).substringBefore(" |")] = item.optString(5)
+                val name = item.optString(0).substringBefore(" |")
+                if (!item.isNull(5)) leagues[name] = item.optString(5)
+                if (!item.isNull(6)) {
+                    try {
+                        val history = JSONObject(item.optString(6))
+                        val won = Triple(history.optInt("gold"), history.optInt("silver"), history.optInt("bronze"))
+                        if (won.first + won.second + won.third > 0) medals[name] = won
+                    } catch (e: Exception) {
+                        // no medals
+                    }
+                }
             }
         }
         for (i in 0 until users.length()) {
@@ -227,6 +342,7 @@ object Leaderboard {
                 } catch (e: Exception) {
                     continue
                 }
+            val won = medals[name]
             val row =
                 Row(
                     rank = 0,
@@ -240,6 +356,9 @@ object Leaderboard {
                     league = leagues[name],
                     me = name == username,
                     active = true,
+                    gold = won?.first ?: 0,
+                    silver = won?.second ?: 0,
+                    bronze = won?.third ?: 0,
                 )
             if (synced > since) {
                 active += row
