@@ -156,6 +156,8 @@ class CongratsPage :
             setOnMenuItemClickListener { item ->
                 if (item.itemId == R.id.action_open_deck_options) {
                     viewModel.onDeckOptions()
+                } else if (item.itemId == R.id.action_custom_study) {
+                    onStudyMore()
                 }
                 true
             }

@@ -8,6 +8,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <item
+        android:id="@+id/action_custom_study"
+        android:title="Custom study"
+        app:showAsAction="always|withText"/>
+    <item
         android:id="@+id/action_open_deck_options"
         tools:title="Deck options"
         android:icon="@drawable/ic_tune_white"
