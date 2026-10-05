@@ -90,7 +90,8 @@ jobs:
         run: |
           rustup toolchain install 1.97.1 --profile minimal --target aarch64-linux-android
           rustup default 1.97.1
-          cargo install --list | grep -q '^cargo-ndk v4.1.2' || cargo install cargo-ndk@4.1.2
+          # the cached ~/.cargo/bin has them (cargo's install list is not cached: check the programs)
+          command -v cargo-ndk >/dev/null || cargo install cargo-ndk@4.1.2
           command -v n2 >/dev/null || cargo install --git https://github.com/evmar/n2.git --rev 53ec691df749277104d1d4201a344fe4243d6d0a
 
       - name: Android SDK packages and NDK
