@@ -74,23 +74,26 @@ jobs:
         if: env.SKIP != '1'
         uses: actions/cache/restore@v4
         with:
+          # the installed tools with cargo's list of them (the backend build checks that list)
           path: |
             ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
             ~/.cargo/registry
             ~/.cargo/git
             Anki-Android-Backend/target
             Anki-Android-Backend/anki/out
-          key: kuma3-rust-${{ hashFiles('Anki-Android-Backend/Cargo.lock', 'Anki-Android-Backend/anki/Cargo.lock') }}-${{ env.CORE_SHA }}
+          key: kuma3-rust2-${{ hashFiles('Anki-Android-Backend/Cargo.lock', 'Anki-Android-Backend/anki/Cargo.lock') }}-${{ env.CORE_SHA }}
           restore-keys: |
-            kuma3-rust-${{ hashFiles('Anki-Android-Backend/Cargo.lock', 'Anki-Android-Backend/anki/Cargo.lock') }}-
-            kuma3-rust-
+            kuma3-rust2-${{ hashFiles('Anki-Android-Backend/Cargo.lock', 'Anki-Android-Backend/anki/Cargo.lock') }}-
+            kuma3-rust2-
 
       - name: Rust 1.97.1, cargo-ndk, n2
         if: env.SKIP != '1'
         run: |
           rustup toolchain install 1.97.1 --profile minimal --target aarch64-linux-android
           rustup default 1.97.1
-          # the cached ~/.cargo/bin has them (cargo's install list is not cached: check the programs)
+          # with the Rust cache, both are there already
           command -v cargo-ndk >/dev/null || cargo install cargo-ndk@4.1.2
           command -v n2 >/dev/null || cargo install --git https://github.com/evmar/n2.git --rev 53ec691df749277104d1d4201a344fe4243d6d0a
 
@@ -120,11 +123,13 @@ jobs:
         with:
           path: |
             ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
             ~/.cargo/registry
             ~/.cargo/git
             Anki-Android-Backend/target
             Anki-Android-Backend/anki/out
-          key: kuma3-rust-${{ hashFiles('Anki-Android-Backend/Cargo.lock', 'Anki-Android-Backend/anki/Cargo.lock') }}-${{ env.CORE_SHA }}
+          key: kuma3-rust2-${{ hashFiles('Anki-Android-Backend/Cargo.lock', 'Anki-Android-Backend/anki/Cargo.lock') }}-${{ env.CORE_SHA }}
 
       - name: Signing keys
         if: env.SKIP != '1'
