@@ -38,7 +38,7 @@ jobs:
       NDK_VERSION: 29.0.14206865
     steps:
       - name: App source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: Anki-Android
 
@@ -63,14 +63,16 @@ jobs:
 
       - name: Java 21
         if: env.SKIP != '1'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
+      # restored here, saved right after the backend build (below), so a later failure keeps it
       - name: Rust cache
+        id: rust-cache
         if: env.SKIP != '1'
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/bin
@@ -111,6 +113,18 @@ jobs:
           ANDROID_RUSTFLAGS: --remap-path-prefix=/home/runner=/build
         run: RELEASE=1 cargo run -p build_rust
 
+      - name: Save the Rust cache
+        if: env.SKIP != '1' && steps.rust-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+            Anki-Android-Backend/target
+            Anki-Android-Backend/anki/out
+          key: kuma3-rust-${{ hashFiles('Anki-Android-Backend/Cargo.lock', 'Anki-Android-Backend/anki/Cargo.lock') }}-${{ env.CORE_SHA }}
+
       - name: Signing keys
         if: env.SKIP != '1'
         env:
@@ -138,6 +152,10 @@ jobs:
           cp Anki-Android/AnkiDroid/build/outputs/apk/full/release/AnkiDroid-full-arm64-v8a-release.apk out/kuma3-anki-arm64.apk
           cp Anki-Android/AnkiDroid/build/outputs/apk/full/debug/AnkiDroid-full-arm64-v8a-debug.apk out/kuma3-anki-debug-arm64.apk
           signer="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          # On the runner Gradle signed the debug app with a debug key of its own: sign it again with
+          # the debug key its users have (Android's standard debug key settings)
+          "$signer" sign --ks ~/.android/debug.keystore --ks-pass pass:android --ks-key-alias androiddebugkey \
+            --key-pass pass:android out/kuma3-anki-debug-arm64.apk
           for apk in out/*.apk; do
             # no build machine paths in the library
             paths=$(unzip -p "$apk" lib/arm64-v8a/librsdroid.so | strings -a | grep -c '/home/' || true)
