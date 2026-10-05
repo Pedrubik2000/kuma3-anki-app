@@ -8,9 +8,12 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
 import com.ichi2.anki.DeckPicker
+import com.ichi2.anki.kuma3.Kuma3Settings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -53,7 +56,13 @@ class LeaderboardFooter(
 
     init {
         current = WeakReference(this)
-        reload()
+        // also whenever the deck list reloads (on resume, e.g. back from Settings > kuma3; after a
+        // sync): the board is cached, so this is cheap
+        deckPicker.lifecycleScope.launch {
+            deckPicker.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                deckPicker.viewModel.flowOfDecksReloaded.collect { readBoard() }
+            }
+        }
     }
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
@@ -67,21 +76,29 @@ class LeaderboardFooter(
         list = null
     }
 
-    /** Read the board in the background (the saved reply is large), then redraw. */
+    /**
+     * Read the board in the background (the saved reply is large), then redraw, even when the
+     * board is the same: an option (rows, medals, focus) changed.
+     */
     private fun reload() {
-        deckPicker.lifecycleScope.launch {
-            board =
-                try {
-                    if (Leaderboard.isSignedIn) Leaderboard.board() else null
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Timber.w(e, "leaderboard not read")
-                    null
-                }
-            @Suppress("NotifyDataSetChanged") // a single row
-            notifyDataSetChanged()
-        }
+        deckPicker.lifecycleScope.launch { readBoard(redraw = true) }
+    }
+
+    private suspend fun readBoard(redraw: Boolean = false) {
+        val fresh =
+            try {
+                // Settings > kuma3 > Leaderboard
+                if (Leaderboard.isSignedIn && Kuma3Settings.leaderboard) Leaderboard.board() else null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "leaderboard not read")
+                null
+            }
+        if (fresh == board && !redraw) return
+        board = fresh
+        @Suppress("NotifyDataSetChanged") // a single row
+        notifyDataSetChanged()
     }
 
     override fun getItemCount() = if (board == null) 0 else 1

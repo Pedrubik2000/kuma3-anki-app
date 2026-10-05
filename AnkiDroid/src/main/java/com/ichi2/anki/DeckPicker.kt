@@ -1233,6 +1233,8 @@ open class DeckPicker :
         menu.findItem(R.id.action_empty_cards)?.title = TR.sentenceCase.emptyCards
         menu.findItem(R.id.action_deck_rename)?.title = TR.sentenceCase.renameDeck
         menu.findItem(R.id.action_deck_delete)?.title = TR.sentenceCase.deleteDeck
+        // Settings > kuma3 > Leaderboard
+        menu.findItem(R.id.action_leaderboard)?.isVisible = com.ichi2.anki.kuma3.Kuma3Settings.leaderboard
         setupMediaSyncMenuItem(menu)
         // redraw menu synchronously to avoid flicker
         updateMenuFromState(menu)

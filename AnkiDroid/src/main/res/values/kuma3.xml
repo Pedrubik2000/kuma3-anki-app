@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- kuma3: not translated (the kuma3 texts are English only for now) -->
+<resources>
+    <string name="kuma3_screen_key" translatable="false">kuma3Screen</string>
+</resources>

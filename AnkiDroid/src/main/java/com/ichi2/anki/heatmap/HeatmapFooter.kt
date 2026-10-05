@@ -56,6 +56,15 @@ class HeatmapFooter(
     }
 
     private suspend fun reload() {
+        // Settings > kuma3 > Review heatmap
+        if (!com.ichi2.anki.kuma3.Kuma3Settings.heatmap) {
+            if (data != null) {
+                data = null
+                @Suppress("NotifyDataSetChanged") // a single row
+                notifyDataSetChanged()
+            }
+            return
+        }
         try {
             val fresh = HeatmapData.load()
             if (fresh.sameAs(data)) return

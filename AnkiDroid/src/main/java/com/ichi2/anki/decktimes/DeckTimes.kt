@@ -26,7 +26,8 @@ object DeckTimes {
             deckPicker.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 deckPicker.viewModel.flowOfDecksReloaded.collect {
                     try {
-                        adapter.timesToday = load()
+                        // Settings > kuma3 > Time per deck
+                        adapter.timesToday = if (com.ichi2.anki.kuma3.Kuma3Settings.deckTimes) load() else emptyMap()
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

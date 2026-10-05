@@ -105,6 +105,15 @@
         app:summaryEntries="@array/controls_summary_entries">
     </com.ichi2.preferences.HeaderPreference>
 
+    <!-- kuma3: the extras of this build (com.ichi2.anki.kuma3) -->
+    <com.ichi2.preferences.HeaderPreference
+        android:fragment="com.ichi2.anki.kuma3.Kuma3SettingsFragment"
+        android:key="@string/kuma3_screen_key"
+        android:title="kuma3"
+        android:summary="Heatmap • Time per deck • Leaderboard • RWKV"
+        android:icon="@drawable/ic_bar_chart_black">
+    </com.ichi2.preferences.HeaderPreference>
+
     <!-- Accessibility -->
     <com.ichi2.preferences.HeaderPreference
         android:fragment="com.ichi2.anki.preferences.AccessibilitySettingsFragment"

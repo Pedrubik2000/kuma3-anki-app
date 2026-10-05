@@ -45,12 +45,21 @@ object RwkvOffline {
             val model = installModel(context)
             val replayed = backend.rwkvPrepareOffline(modelPath = model.absolutePath)
             Timber.i("RWKV prepared: %s reviews replayed in %d ms", replayed, System.currentTimeMillis() - started)
-            if (replayed >= TOAST_AFTER_REPLAYED) showToast(context, "RWKV ready ($replayed reviews)")
+            if (replayed >= TOAST_AFTER_REPLAYED && toastEnabled(context)) showToast(context, "RWKV ready ($replayed reviews)")
         } catch (e: Exception) {
             Timber.w(e, "RWKV preparation failed; using the standard scheduler")
             showToast(context, "RWKV unavailable: standard review order")
         }
     }
+
+    /**
+     * Settings > kuma3 > 'RWKV ready' message (Kuma3Settings.KEY_RWKV_TOAST in the app module,
+     * which this module cannot see; the app's default preferences file).
+     */
+    private fun toastEnabled(context: Context) =
+        context
+            .getSharedPreferences(context.packageName + "_preferences", Context.MODE_PRIVATE)
+            .getBoolean("kuma3_rwkv_toast", true)
 
     private fun installModel(context: Context): File {
         val dir = File(context.noBackupFilesDir, "rwkv")

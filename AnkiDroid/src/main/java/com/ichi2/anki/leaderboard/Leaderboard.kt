@@ -9,6 +9,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.CollectionManager.withCol
+import com.ichi2.anki.kuma3.Kuma3Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -230,7 +231,7 @@ object Leaderboard {
 
     /** Called after a successful AnkiWeb sync. */
     fun uploadAfterSync(activity: FragmentActivity) {
-        if (!isSignedIn) return
+        if (!isSignedIn || !Kuma3Settings.leaderboard) return
         upload(activity)
     }
 
@@ -238,7 +239,7 @@ object Leaderboard {
 
     /** Called when the user leaves the reviewer ([uploadAfterReviews]). */
     fun uploadAfterReviews(activity: FragmentActivity) {
-        if (!isSignedIn || !uploadAfterReviews) return
+        if (!isSignedIn || !uploadAfterReviews || !Kuma3Settings.leaderboard) return
         val now = System.currentTimeMillis()
         if (now - lastReviewUploadMillis < UPLOAD_AFTER_REVIEWS_INTERVAL_MILLIS) return
         lastReviewUploadMillis = now

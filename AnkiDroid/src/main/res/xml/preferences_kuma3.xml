@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Settings > kuma3: read by com.ichi2.anki.kuma3.Kuma3Settings (keys must match) -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="kuma3"
+    android:key="@string/kuma3_screen_key">
+    <PreferenceCategory android:title="Deck list">
+        <SwitchPreferenceCompat
+            android:key="kuma3_heatmap"
+            android:title="Review heatmap"
+            android:summary="A year or a month of reviews done and cards due, below the decks"
+            android:defaultValue="true" />
+        <SwitchPreferenceCompat
+            android:key="kuma3_deck_times"
+            android:title="Time per deck"
+            android:summary="The time answered today on each deck row"
+            android:defaultValue="true" />
+        <SwitchPreferenceCompat
+            android:key="kuma3_leaderboard"
+            android:title="Leaderboard" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="RWKV">
+        <SwitchPreferenceCompat
+            android:key="kuma3_rwkv_toast"
+            android:title="'RWKV ready' message"
+            android:summary="Shown when the RWKV state was rebuilt (first start, after an update)"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+</PreferenceScreen>
