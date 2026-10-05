@@ -2,9 +2,11 @@
 
 package com.ichi2.anki
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.widget.Toast
 import net.ankiweb.rsdroid.Backend
 import timber.log.Timber
@@ -41,10 +43,10 @@ object RwkvOffline {
         backend: Backend,
     ) {
         try {
-            val started = System.currentTimeMillis()
+            val started = SystemClock.elapsedRealtime()
             val model = installModel(context)
             val replayed = backend.rwkvPrepareOffline(modelPath = model.absolutePath)
-            Timber.i("RWKV prepared: %s reviews replayed in %d ms", replayed, System.currentTimeMillis() - started)
+            Timber.i("RWKV prepared: %s reviews replayed in %d ms", replayed, SystemClock.elapsedRealtime() - started)
             if (replayed >= TOAST_AFTER_REPLAYED && toastEnabled(context)) showToast(context, "RWKV ready ($replayed reviews)")
         } catch (e: Exception) {
             Timber.w(e, "RWKV preparation failed; using the standard scheduler")
@@ -53,7 +55,7 @@ object RwkvOffline {
     }
 
     /**
-     * Settings > kuma3 > 'RWKV ready' message (Kuma3Settings.KEY_RWKV_TOAST in the app module,
+     * Settings > kuma3 > 'RWKV ready' message (R.string.kuma3_rwkv_toast_key in the app module,
      * which this module cannot see; the app's default preferences file).
      */
     private fun toastEnabled(context: Context) =
@@ -77,6 +79,8 @@ object RwkvOffline {
         return model
     }
 
+    // the app's showThemedToast is in the app module, which this module cannot see
+    @SuppressLint("DirectToastMakeTextUsage")
     private fun showToast(
         context: Context,
         text: String,

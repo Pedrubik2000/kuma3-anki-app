@@ -35,6 +35,9 @@
 -keep class androidx.concurrent.futures.** { *; }
 -keep class androidx.appcompat.view.menu.MenuItemImpl { *; } # .utils.ext.MenuItemImpl
 -keep class com.ichi2.anki.settings.PrefsRepository { *; } # PrefsRepository.notificationsPermissionRequested
+# kuma3: the class is now `Prefs` (the rule above names its old name): without this, a release
+# build crashed when the deck list resumed (NoSuchFieldException: notificationsPermissionRequested)
+-keep class com.ichi2.anki.settings.Prefs { *; }
 
 # used via exception.toString()
 -keepnames class * extends java.lang.Throwable

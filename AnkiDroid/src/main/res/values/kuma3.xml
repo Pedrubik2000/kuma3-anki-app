@@ -3,4 +3,13 @@
 <!-- kuma3: not translated (the kuma3 texts are English only for now) -->
 <resources>
     <string name="kuma3_screen_key" translatable="false">kuma3Screen</string>
+    <!-- Settings > kuma3 (com.ichi2.anki.kuma3.Kuma3Settings) -->
+    <string name="kuma3_heatmap_key" translatable="false">kuma3_heatmap</string>
+    <string name="kuma3_deck_times_key" translatable="false">kuma3_deck_times</string>
+    <string name="kuma3_leaderboard_key" translatable="false">kuma3_leaderboard</string>
+    <!-- also read by anki-common's RwkvOffline, which uses the literal value -->
+    <string name="kuma3_rwkv_toast_key" translatable="false">kuma3_rwkv_toast</string>
+
+    <string name="kuma3_leaderboard" translatable="false">Leaderboard</string>
+    <string name="kuma3_custom_study" translatable="false">Custom study</string>
 </resources>

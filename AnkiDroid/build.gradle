@@ -91,6 +91,8 @@ android {
         // whether UI elements linking to external donation pages are shown ('play' hides them)
         buildConfigField "Boolean", "SHOW_DONATE_LINKS", "true"
         resValue "string", "app_name", "AnkiDroid"
+        // kuma3: the folder in shared storage that holds the collection (SetupStorage.kt)
+        resValue "string", "kuma3_collection_folder", "AnkiDroid"
 
         // The version number is of the form:
         // <major>.<minor>.<maintenance>[dev|alpha<build>|beta<build>|]
@@ -200,6 +202,15 @@ android {
             testProguardFile 'proguard-test-rules.pro'
             splits.abi.universalApk = universalApkEnabled // Build universal APK for release with `-Duniversal-apk=true`
             signingConfig = signingConfigs.release
+
+            // kuma3: release builds are the "kuma3 Anki" app (its own app id, set below in
+            // androidComponents.onVariants; its bear icons are in src/release/res), so they install
+            // next to AnkiDroid. Debug builds stay com.ichi2.anki.debug.
+            resValue "string", "app_name", "kuma3 Anki"
+            versionNameSuffix "-kuma3"
+            // its own collection folder: never the same collection as an AnkiDroid installed next
+            // to it (both would otherwise default to /storage/emulated/0/AnkiDroid)
+            resValue "string", "kuma3_collection_folder", "kuma3"
 
             // syntax: assembleRelease -PcustomSuffix="suffix" -PcustomName="New name"
             if (project.hasProperty("customSuffix")) {
@@ -361,6 +372,11 @@ android {
             excludes += ['META-INF/DEPENDENCIES']
         }
     }
+}
+
+// kuma3: the release app's id. It must never change once people have installed it.
+androidComponents.onVariants(androidComponents.selector().withBuildType("release")) { variant ->
+    variant.applicationId.set("io.github.pedrubik2000.kuma3")
 }
 
 // register release tasks using the finalized version configuration.

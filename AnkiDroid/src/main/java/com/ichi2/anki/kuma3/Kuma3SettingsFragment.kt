@@ -6,6 +6,7 @@ import androidx.preference.SwitchPreferenceCompat
 import com.ichi2.anki.R
 import com.ichi2.anki.leaderboard.Leaderboard
 import com.ichi2.anki.preferences.SettingsFragment
+import com.ichi2.anki.preferences.requirePreference
 
 /** Settings > kuma3: the switches of [Kuma3Settings]. */
 class Kuma3SettingsFragment : SettingsFragment() {
@@ -16,7 +17,7 @@ class Kuma3SettingsFragment : SettingsFragment() {
 
     override fun initSubscreen() {
         // the leaderboard's default depends on the sign-in: show the value in effect
-        findPreference<SwitchPreferenceCompat>(Kuma3Settings.KEY_LEADERBOARD)?.apply {
+        requirePreference<SwitchPreferenceCompat>(R.string.kuma3_leaderboard_key).apply {
             isChecked = Kuma3Settings.leaderboard
             summary =
                 if (Leaderboard.isSignedIn) {

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- kuma3 Anki (release builds): the black bear in light mode, the white bear in dark mode -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/kuma3_icon_background"/>
+    <foreground android:drawable="@drawable/kuma3_icon_foreground"/>
+    <!-- the bear's silhouette, for themed icons -->
+    <monochrome android:drawable="@drawable/kuma3_icon_monochrome"/>
+</adaptive-icon>

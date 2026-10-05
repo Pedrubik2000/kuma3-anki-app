@@ -9,7 +9,7 @@
 
     <item
         android:id="@+id/action_custom_study"
-        android:title="Custom study"
+        android:title="@string/kuma3_custom_study"
         app:showAsAction="always|withText"/>
     <item
         android:id="@+id/action_open_deck_options"

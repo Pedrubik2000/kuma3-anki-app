@@ -2,8 +2,10 @@
 
 package com.ichi2.anki.leaderboard
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.SystemClock
 import androidx.core.content.edit
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
@@ -196,6 +198,8 @@ object Leaderboard {
     }
 
     /** Uploads this device's numbers and returns the board from the server's reply. */
+    // the board's "updated at" time is shown as wall-clock time, as the server's sync dates are
+    @SuppressLint("DirectSystemCurrentTimeMillisUsage")
     suspend fun sync(): Board {
         val season = withContext(Dispatchers.IO) { LeaderboardServer.fetchSeason() }
         val stats = withCol { computeStats(this, season, newDayHour) }
@@ -235,12 +239,13 @@ object Leaderboard {
         upload(activity)
     }
 
-    private var lastReviewUploadMillis = 0L
+    /** When the last upload after reviews started ([SystemClock.elapsedRealtime]). */
+    private var lastReviewUploadMillis = -UPLOAD_AFTER_REVIEWS_INTERVAL_MILLIS
 
     /** Called when the user leaves the reviewer ([uploadAfterReviews]). */
     fun uploadAfterReviews(activity: FragmentActivity) {
         if (!isSignedIn || !uploadAfterReviews || !Kuma3Settings.leaderboard) return
-        val now = System.currentTimeMillis()
+        val now = SystemClock.elapsedRealtime()
         if (now - lastReviewUploadMillis < UPLOAD_AFTER_REVIEWS_INTERVAL_MILLIS) return
         lastReviewUploadMillis = now
         upload(activity)

@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Environment
 import androidx.annotation.CheckResult
 import androidx.core.content.edit
+import com.ichi2.anki.R
 import com.ichi2.anki.StoragePermissionSet
 import com.ichi2.anki.common.preferences.sharedPrefs
 import com.ichi2.anki.common.storage.AnkiDroidFolder
@@ -114,7 +115,9 @@ fun ensureCollectionPathSet(context: Context) {
  * very different things as explained above.
  *
  * @param directoryName  The leaf folder name to use at the end of the returned path.
- *                       Defaults to `"AnkiDroid"` (the historical default-profile folder name).
+ *                       Defaults to `R.string.kuma3_collection_folder`: `"AnkiDroid"` (the
+ *                       historical default-profile folder name), `"kuma3"` in kuma3 Anki (release
+ *                       builds), so it never opens the collection of an AnkiDroid next to it.
  *                       Callers wanting a profile-specific layout can pass e.g. the profile id.
  * @param folder  The storage location to return the default directory for.
  *                Defaults to [selectAnkiDroidFolder].
@@ -126,7 +129,7 @@ fun ensureCollectionPathSet(context: Context) {
 @CheckResult
 fun getDefaultAnkiDroidDirectory(
     context: Context,
-    directoryName: String = "AnkiDroid",
+    directoryName: String = context.getString(R.string.kuma3_collection_folder),
     folder: AnkiDroidFolder = selectAnkiDroidFolder(context),
 ): File =
     when (folder) {
