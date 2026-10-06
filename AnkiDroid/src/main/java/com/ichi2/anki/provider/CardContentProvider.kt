@@ -111,6 +111,9 @@ class CardContentProvider : ContentProvider() {
 
         /** kuma3: update() of "cards" with this value = JSON {card id: due} sets new cards' order. */
         private const val KUMA3_NEW_DUE = "kuma3_new_due"
+
+        /** kuma3: update() of "notes/#/cards/#" with this boolean suspends (true) or unsuspends the card. */
+        private const val KUMA3_SUSPEND = "kuma3_suspend"
         private const val CARD_ID = 6001
         private val uriMatcher = UriMatcher(UriMatcher.NO_MATCH)
 
@@ -595,6 +598,13 @@ class CardContentProvider : ContentProvider() {
                             Timber.d("CardContentProvider: flags update...")
                             currentCard.setUserFlag(flags)
                             col.updateCard(currentCard)
+                            updated++
+                        }
+                        KUMA3_SUSPEND -> {
+                            // kuma3: kumapie keeps its progress in a note per device; its card is suspended so it
+                            // never comes up for review. Send it alone (other keys would save the old queue).
+                            val ids = listOf(currentCard.id)
+                            if (values.getAsBoolean(key) == true) col.sched.suspendCards(ids) else col.sched.unsuspendCards(ids)
                             updated++
                         }
                         else -> {
