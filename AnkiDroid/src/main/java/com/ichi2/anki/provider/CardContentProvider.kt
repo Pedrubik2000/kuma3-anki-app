@@ -606,14 +606,15 @@ class CardContentProvider : ContentProvider() {
             }
             CARDS -> {
                 // kuma3: new cards' order in one go (kumapie's morphs recalc): "kuma3_new_due" = JSON
-                // {"<card id>": due, ...}. Only cards still new (type and queue new) change; one bulk update.
+                // {"<card id>": due, ...}. Only new cards change (suspended or buried ones too, as morphs on the
+                // PC does: due is their position); one bulk update.
                 val dues = JSONObject(requireNotNull(values?.getAsString(KUMA3_NEW_DUE)) { "Only $KUMA3_NEW_DUE is supported" })
                 val cards =
                     dues
                         .keys()
                         .asSequence()
                         .map { col.getCard(it.toLong()) }
-                        .filter { it.type.code == 0 && it.queue.code == 0 }
+                        .filter { it.type.code == 0 }
                         .onEach { it.due = dues.getInt(it.id.toString()) }
                         .toList()
                 if (cards.isNotEmpty()) col.updateCards(cards)
