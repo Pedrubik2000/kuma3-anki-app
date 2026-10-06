@@ -138,11 +138,31 @@ class CardContentProvider : ContentProvider() {
             return sanitized.toTypedArray()
         }
 
+        private val registeredAuthorities = mutableSetOf<String>()
+
         init {
+            registerAuthority(FlashCardsContract.AUTHORITY)
+
+            for (idx in defaultNoteProjectionDbAccess.indices) {
+                if (defaultNoteProjectionDbAccess[idx] == FlashCardsContract.Note._ID) {
+                    defaultNoteProjectionDbAccess[idx] = "id as _id"
+                }
+            }
+        }
+
+        /**
+         * kuma3: the URIs under [authority]. The api module is built with AnkiDroid's names, but the
+         * provider is declared as `${applicationId}.flashcards`, so an app with its own id (kuma3 Anki:
+         * io.github.pedrubik2000.kuma3) registers its own authority too (from [onCreate]).
+         */
+        @Synchronized
+        private fun registerAuthority(authority: String) {
+            if (!registeredAuthorities.add(authority)) return
+
             fun addUri(
                 path: String,
                 code: Int,
-            ) = uriMatcher.addURI(FlashCardsContract.AUTHORITY, path, code)
+            ) = uriMatcher.addURI(authority, path, code)
             // Here you can see all the URIs at a glance
             addUri("notes", NOTES)
             addUri("notes_v2", NOTES_V2)
@@ -162,18 +182,21 @@ class CardContentProvider : ContentProvider() {
             addUri("media", MEDIA)
             addUri("cards", CARDS)
             addUri("cards/#", CARD_ID)
-
-            for (idx in defaultNoteProjectionDbAccess.indices) {
-                if (defaultNoteProjectionDbAccess[idx] == FlashCardsContract.Note._ID) {
-                    defaultNoteProjectionDbAccess[idx] = "id as _id"
-                }
-            }
         }
     }
+
+    /**
+     * kuma3: the permission other apps must hold, named after this app's id like the one the
+     * manifest declares (`${applicationId}.permission.READ_WRITE_DATABASE`). The api module's
+     * [FlashCardsContract.READ_WRITE_PERMISSION] is AnkiDroid's name, which kuma3 Anki doesn't define.
+     */
+    private val readWritePermission: String
+        get() = "${context!!.packageName}.permission.READ_WRITE_DATABASE"
 
     override fun onCreate(): Boolean {
         // Initialize content provider on startup.
         Timber.d("CardContentProvider: onCreate")
+        registerAuthority("${context!!.packageName}.flashcards")
         AnkiDroidApp.makeBackendUsable(context!!)
         return true
     }
@@ -1200,14 +1223,17 @@ class CardContentProvider : ContentProvider() {
         col: Collection,
         columns: Array<String>,
     ) {
-        val cardName: String =
+        // kuma3: rendered only when a column asks for them (reading 7,000 cards' stability took 87 s
+        // on a tablet because every card's question and answer were rendered)
+        val cardName: String by lazy {
             try {
                 currentCard.template(col).name
             } catch (je: JSONException) {
                 throw IllegalArgumentException("Card is using an invalid template", je)
             }
-        val question = currentCard.renderOutput(col).questionWithFixedSoundTags()
-        val answer = currentCard.renderOutput(col).answerWithFixedSoundTags()
+        }
+        val question by lazy { currentCard.renderOutput(col).questionWithFixedSoundTags() }
+        val answer by lazy { currentCard.renderOutput(col).answerWithFixedSoundTags() }
         val rb = rv.newRow()
         for (column in columns) {
             when (column) {
@@ -1465,15 +1491,14 @@ class CardContentProvider : ContentProvider() {
 
     private fun hasReadWritePermission(): Boolean =
         if (BuildConfig.DEBUG) { // Allow self-calling of the provider only in debug builds (e.g. for unit tests)
-            context!!.checkCallingOrSelfPermission(FlashCardsContract.READ_WRITE_PERMISSION) == PackageManager.PERMISSION_GRANTED
+            context!!.checkCallingOrSelfPermission(readWritePermission) == PackageManager.PERMISSION_GRANTED
         } else {
-            context!!.checkCallingPermission(FlashCardsContract.READ_WRITE_PERMISSION) == PackageManager.PERMISSION_GRANTED
+            context!!.checkCallingPermission(readWritePermission) == PackageManager.PERMISSION_GRANTED
         }
 
     /** Returns true if the calling package is known to be "rogue" and should be blocked.
      * Calling package might be rogue if it has not declared #READ_WRITE_PERMISSION in its manifest */
-    private fun knownRogueClient(): Boolean =
-        !context!!.arePermissionsDefinedInManifest(callingPackage!!, FlashCardsContract.READ_WRITE_PERMISSION)
+    private fun knownRogueClient(): Boolean = !context!!.arePermissionsDefinedInManifest(callingPackage!!, readWritePermission)
 }
 
 /** replaces [anki:play...] with [sound:] */
