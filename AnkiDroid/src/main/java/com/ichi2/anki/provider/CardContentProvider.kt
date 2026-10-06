@@ -54,6 +54,7 @@ import net.ankiweb.rsdroid.BackendException
 import net.ankiweb.rsdroid.exceptions.BackendDeckIsFilteredException
 import org.json.JSONArray
 import org.json.JSONException
+import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
@@ -107,6 +108,9 @@ class CardContentProvider : ContentProvider() {
         private const val DECKS_ID = 4002
         private const val MEDIA = 5000
         private const val CARDS = 6000
+
+        /** kuma3: update() of "cards" with this value = JSON {card id: due} sets new cards' order. */
+        private const val KUMA3_NEW_DUE = "kuma3_new_due"
         private const val CARD_ID = 6001
         private val uriMatcher = UriMatcher(UriMatcher.NO_MATCH)
 
@@ -599,6 +603,21 @@ class CardContentProvider : ContentProvider() {
                         }
                     }
                 }
+            }
+            CARDS -> {
+                // kuma3: new cards' order in one go (kumapie's morphs recalc): "kuma3_new_due" = JSON
+                // {"<card id>": due, ...}. Only cards still new (type and queue new) change; one bulk update.
+                val dues = JSONObject(requireNotNull(values?.getAsString(KUMA3_NEW_DUE)) { "Only $KUMA3_NEW_DUE is supported" })
+                val cards =
+                    dues
+                        .keys()
+                        .asSequence()
+                        .map { col.getCard(it.toLong()) }
+                        .filter { it.type.code == 0 && it.queue.code == 0 }
+                        .onEach { it.due = dues.getInt(it.id.toString()) }
+                        .toList()
+                if (cards.isNotEmpty()) col.updateCards(cards)
+                updated = cards.size
             }
             NOTE_TYPES -> throw IllegalArgumentException("Cannot update models in bulk")
             NOTE_TYPES_ID -> {
