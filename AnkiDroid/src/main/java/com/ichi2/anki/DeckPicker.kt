@@ -577,11 +577,15 @@ open class DeckPicker :
             )
         com.ichi2.anki.decktimes.DeckTimes
             .attach(this, deckListAdapter)
+        com.ichi2.anki.forecast.RwkvForecast
+            .attach(this)
         deckPickerBinding.decks.adapter =
             androidx.recyclerview.widget.ConcatAdapter(
                 deckListAdapter,
                 com.ichi2.anki.heatmap
                     .HeatmapFooter(this),
+                com.ichi2.anki.forecast.RwkvForecast
+                    .graphFooter(this),
                 com.ichi2.anki.leaderboard
                     .LeaderboardFooter(this),
             )
@@ -830,7 +834,8 @@ open class DeckPicker :
         fun onOptionsMenuUpdated(unused: OptionsMenuState) = invalidateOptionsMenu()
 
         fun onStudiedTodayChanged(studiedToday: String) {
-            deckPickerBinding.reviewSummaryTextView.text = studiedToday
+            com.ichi2.anki.forecast.RwkvForecast
+                .show(this@DeckPicker, studiedToday)
         }
 
         fun onCollectionStatusChanged(isInInitialState: Boolean) {
@@ -1219,6 +1224,8 @@ open class DeckPicker :
         // activity (see StudyOptionsFragment), and the menu host dispatches creation,
         // preparation and selection to them. This activity never drives a fragment's menu.
         menuInflater.inflate(R.menu.deck_picker, menu)
+        com.ichi2.anki.kuma3.lofi.LofiButton
+            .addTo(this, menu)
         menu.findItem(R.id.deck_picker_action_filter)?.let {
             toolbarSearchItem = it
             setupSearchIcon(it)

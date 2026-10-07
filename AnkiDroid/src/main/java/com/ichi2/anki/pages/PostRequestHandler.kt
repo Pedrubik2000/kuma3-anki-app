@@ -119,6 +119,7 @@ val collectionMethods =
         // JSchoreels FSRS-7 fork additions used by the deck options page
         "evaluateParams" to { bytes -> evaluateParamsRaw(bytes) },
         "rwkvOfflineInstantPassStep" to { bytes -> backend.rwkvOfflineInstantPassStepRaw(input = bytes) },
+        "rwkvOfflineForecast" to { bytes -> backend.rwkvOfflineForecastRaw(input = bytes) },
         "getFsrsNewCardIntervals" to { bytes -> getFsrsNewCardIntervalsRaw(bytes) },
         // https://github.com/ankitects/anki/pull/4326 -> saveCustomColours should be no-op in mobile clients
         "saveCustomColours" to { bytes -> backendIdentity(bytes) },

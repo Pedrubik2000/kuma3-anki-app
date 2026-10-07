@@ -19,7 +19,25 @@
             android:key="@string/kuma3_leaderboard_key"
             android:title="Leaderboard" />
     </PreferenceCategory>
+    <PreferenceCategory android:title="Lofi">
+        <SwitchPreferenceCompat
+            android:key="@string/kuma3_lofi_key"
+            android:title="Lofi button"
+            android:summary="Lofi music while you study: tap the headphones in the deck list or the reviewer, long-press for tracks, volume and sources"
+            android:defaultValue="true" />
+    </PreferenceCategory>
     <PreferenceCategory android:title="RWKV">
+        <SwitchPreferenceCompat
+            android:key="@string/kuma3_rwkv_forecast_key"
+            android:title="RWKV forecast"
+            android:summary="Under 'Studied today': review cards due, added by the daily minimum, near the line and safe now, and how many more become due in 1 h, 3 h and by tomorrow"
+            android:defaultValue="true" />
+        <SwitchPreferenceCompat
+            android:key="@string/kuma3_rwkv_forecast_graph_key"
+            android:dependency="@string/kuma3_rwkv_forecast_key"
+            android:title="RWKV forecast graph"
+            android:summary="Below the heatmap: a dot per review card at its recall now, coloured like the forecast's counts"
+            android:defaultValue="true" />
         <SwitchPreferenceCompat
             android:key="@string/kuma3_rwkv_toast_key"
             android:title="'RWKV ready' message"

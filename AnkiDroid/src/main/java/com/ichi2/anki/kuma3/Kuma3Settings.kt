@@ -34,5 +34,14 @@ object Kuma3Settings {
      */
     val leaderboard: Boolean get() = get(R.string.kuma3_leaderboard_key, Leaderboard.isSignedIn)
 
+    /** The RWKV forecast (due / near / safe, due soon) under "Studied … today". */
+    val rwkvForecast: Boolean get() = get(R.string.kuma3_rwkv_forecast_key, true)
+
+    /** The RWKV forecast's dot graph above its counts. */
+    val rwkvForecastGraph: Boolean get() = get(R.string.kuma3_rwkv_forecast_graph_key, true)
+
+    /** The Lofi button in the deck list's and the reviewer's top bar (com.ichi2.anki.kuma3.lofi). */
+    val lofi: Boolean get() = get(R.string.kuma3_lofi_key, true)
+
     // The "RWKV ready" switch (R.string.kuma3_rwkv_toast_key) is read by anki-common's RwkvOffline.
 }

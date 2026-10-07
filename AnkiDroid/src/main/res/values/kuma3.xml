@@ -7,6 +7,10 @@
     <string name="kuma3_heatmap_key" translatable="false">kuma3_heatmap</string>
     <string name="kuma3_deck_times_key" translatable="false">kuma3_deck_times</string>
     <string name="kuma3_leaderboard_key" translatable="false">kuma3_leaderboard</string>
+    <string name="kuma3_rwkv_forecast_key" translatable="false">kuma3_rwkv_forecast</string>
+    <string name="kuma3_lofi_key" translatable="false">kuma3_lofi</string>
+    <item name="action_kuma3_lofi" type="id" />
+    <string name="kuma3_rwkv_forecast_graph_key" translatable="false">kuma3_rwkv_forecast_graph</string>
     <!-- also read by anki-common's RwkvOffline, which uses the literal value -->
     <string name="kuma3_rwkv_toast_key" translatable="false">kuma3_rwkv_toast</string>
 

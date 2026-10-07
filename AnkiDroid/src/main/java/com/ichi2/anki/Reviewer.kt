@@ -1175,6 +1175,8 @@ open class Reviewer :
         Timber.d("onCreateOptionsMenu()")
         // NOTE: This is called every time a new question is shown via invalidate options menu
         menuInflater.inflate(R.menu.reviewer, menu)
+        com.ichi2.anki.kuma3.lofi.LofiButton
+            .addTo(this, menu)
         menu.findItem(R.id.action_flag).subMenu?.let { subMenu -> setupFlags(subMenu) }
         displayIcons(menu)
         actionButtons.setCustomButtonsStatus(menu)
