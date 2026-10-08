@@ -2,6 +2,7 @@
 package com.ichi2.anki.kuma3
 
 import com.ichi2.anki.CollectionManager.withCol
+import com.ichi2.anki.common.time.TimeManager
 
 /**
  * Keeps the deck list footers' results (forecast, time per deck, heatmap) until what they read
@@ -38,7 +39,7 @@ object Kuma3Cache {
         load: suspend () -> T,
     ): T {
         val key = fingerprint()
-        val now = System.currentTimeMillis()
+        val now = TimeManager.time.intTimeMS()
         synchronized(entries) { entries[name] }
             ?.takeIf { it.key == key && now - it.madeAt < maxAgeMs }
             ?.let { return it.value as T }
