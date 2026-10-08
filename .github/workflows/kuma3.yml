@@ -1,7 +1,8 @@
 # kuma3: builds the two APKs from the three kuma3-anki repositories and publishes them.
 #
 # - a push to rwkv (or "Run workflow"): the rolling pre-release "kuma3-dev", always the newest build
-# - a tag kuma3-<n>: the release, with the notes in kuma3/release-notes/kuma3-<n>.md
+# - a tag v<n>: release <n>, with the notes in kuma3/release-notes/kuma3-<n>.md (v tags, because
+#   GitHub's release list sorts kuma3-9 above kuma3-10; v9, v10 sort as numbers)
 # - every hour: a new kuma3-dev when kuma3-anki-backend (and so the core) changed since the last one
 #
 # The APKs:
@@ -14,7 +15,7 @@ name: kuma3 build
 on:
   push:
     branches: [rwkv]
-    tags: ['kuma3-*']
+    tags: ['v*']
   workflow_dispatch:
   schedule:
     - cron: '17 * * * *'
@@ -144,6 +145,8 @@ jobs:
 
       - name: APKs
         if: env.SKIP != '1'
+        # packaging hung once for 36 min (normally a few): fail instead, then rerun
+        timeout-minutes: 30
         working-directory: Anki-Android
         env:
           KEYSTOREPATH: ${{ runner.temp }}/kuma3-release.jks
@@ -189,13 +192,13 @@ jobs:
             cat out/SHA256SUMS.txt
             echo '```'
           }
-          if [[ "$GITHUB_REF" == refs/tags/kuma3-* ]]; then
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             tag=${GITHUB_REF#refs/tags/}
-            notes=Anki-Android/kuma3/release-notes/$tag.md
+            notes=Anki-Android/kuma3/release-notes/kuma3-${tag#v}.md
             [ -f "$notes" ] || { echo "::error::missing $notes"; exit 1; }
             { cat "$notes"; echo; cat Anki-Android/kuma3/release-template.md; echo; source_lines; } > notes.md
             gh release create "$tag" out/*.apk out/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" \
-              --title "kuma3 Anki ${tag#kuma3-}" --notes-file notes.md --latest
+              --title "kuma3 Anki ${tag#v}" --notes-file notes.md --latest
           else
             {
               echo "Development build: the newest code, for trying things out. It changes with every push."
