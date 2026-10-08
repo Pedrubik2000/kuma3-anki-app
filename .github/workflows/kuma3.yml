@@ -145,15 +145,18 @@ jobs:
 
       - name: APKs
         if: env.SKIP != '1'
-        # packaging hung once for 36 min (normally a few): fail instead, then rerun
-        timeout-minutes: 30
+        # Gradle sometimes hangs after packageFullRelease (3 times by 2026-10-08; normally ~11 min
+        # in all): stop it after 20 min and build again, the second run only finishes up (~1 min)
+        timeout-minutes: 40
         working-directory: Anki-Android
         env:
           KEYSTOREPATH: ${{ runner.temp }}/kuma3-release.jks
           KEYSTOREPWD: ${{ secrets.KUMA3_KEYSTORE_PASSWORD }}
           KEYPWD: ${{ secrets.KUMA3_KEYSTORE_PASSWORD }}
           KEYALIAS: kuma3
-        run: ./gradlew :AnkiDroid:assembleFullRelease :AnkiDroid:assembleFullDebug -PabiFilter=arm64-v8a
+        run: |
+          tasks=":AnkiDroid:assembleFullRelease :AnkiDroid:assembleFullDebug -PabiFilter=arm64-v8a"
+          timeout 20m ./gradlew $tasks || { echo "::warning::Gradle hung or failed, building again"; ./gradlew --stop; ./gradlew $tasks; }
 
       - name: Check and name the APKs
         if: env.SKIP != '1'
