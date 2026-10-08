@@ -66,7 +66,9 @@ class HeatmapFooter(
             return
         }
         try {
-            val fresh = HeatmapData.load()
+            val fresh =
+                com.ichi2.anki.kuma3.Kuma3Cache
+                    .get("heatmap") { HeatmapData.load() }
             if (fresh.sameAs(data)) return
             data = fresh
             @Suppress("NotifyDataSetChanged") // a single row

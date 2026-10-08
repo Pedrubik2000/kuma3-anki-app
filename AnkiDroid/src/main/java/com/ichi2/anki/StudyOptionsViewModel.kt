@@ -9,10 +9,12 @@ import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.anki.libanki.Collection
 import com.ichi2.anki.libanki.DeckId
 import com.ichi2.anki.observability.undoableOp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 
@@ -43,7 +45,9 @@ class StudyOptionsViewModel : ViewModel() {
      * the collection.
      */
     suspend fun refreshData() {
-        if (!CollectionManager.isOpenUnsafe()) return
+        // kuma3: off the main thread; isOpenUnsafe waits for the collection queue, which froze
+        // the tablet's deck list while the deck list's own reload jobs ran
+        if (!withContext(Dispatchers.IO) { CollectionManager.isOpenUnsafe() }) return
         withCol { updateStateFromCollection() }
     }
 

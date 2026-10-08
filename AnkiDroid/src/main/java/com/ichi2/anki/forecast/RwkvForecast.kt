@@ -28,6 +28,7 @@ import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.anki.DeckPicker
 import com.ichi2.anki.browser.toIntent
 import com.ichi2.anki.common.destinations.BrowserDestination
+import com.ichi2.anki.kuma3.Kuma3Cache
 import com.ichi2.anki.kuma3.Kuma3Settings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -74,7 +75,8 @@ object RwkvForecast {
                 deckPicker.viewModel.flowOfDecksReloaded.collect {
                     try {
                         // Settings > kuma3 > RWKV forecast
-                        forecast = if (Kuma3Settings.rwkvForecast) load() else null
+                        // recall moves with the clock, so at most a minute old
+                        forecast = if (Kuma3Settings.rwkvForecast) Kuma3Cache.get("forecast", 60_000) { load() } else null
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
