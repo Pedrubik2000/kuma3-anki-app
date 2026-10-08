@@ -116,7 +116,11 @@ jobs:
         env:
           # keep the runner's paths out of the native library
           ANDROID_RUSTFLAGS: --remap-path-prefix=/home/runner=/build
-        run: RELEASE=1 cargo run -p build_rust
+        # stop its Gradle daemon: left running, it held memory while the app's Gradle (another
+        # daemon, other settings) ran R8, and the APK build hung after packaging
+        run: |
+          RELEASE=1 cargo run -p build_rust
+          ./gradlew --stop
 
       - name: Save the Rust cache
         if: env.SKIP != '1' && steps.rust-cache.outputs.cache-hit != 'true'
