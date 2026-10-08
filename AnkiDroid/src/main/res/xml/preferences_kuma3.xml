@@ -40,8 +40,8 @@
             android:defaultValue="true" />
         <SwitchPreferenceCompat
             android:key="@string/kuma3_rwkv_toast_key"
-            android:title="'RWKV ready' message"
-            android:summary="Shown when the RWKV state was rebuilt (first start, after an update)"
+            android:title="'Rebuilding RWKV' message"
+            android:summary="Shown when the RWKV state is rebuilt (first start, after an update)"
             android:defaultValue="true" />
     </PreferenceCategory>
 </PreferenceScreen>

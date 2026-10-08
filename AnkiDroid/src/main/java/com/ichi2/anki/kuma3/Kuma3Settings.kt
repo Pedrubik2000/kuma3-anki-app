@@ -43,5 +43,5 @@ object Kuma3Settings {
     /** The Lofi button in the deck list's and the reviewer's top bar (com.ichi2.anki.kuma3.lofi). */
     val lofi: Boolean get() = get(R.string.kuma3_lofi_key, true)
 
-    // The "RWKV ready" switch (R.string.kuma3_rwkv_toast_key) is read by anki-common's RwkvOffline.
+    // The "Rebuilding RWKV" switch (R.string.kuma3_rwkv_toast_key) is read by anki-common's RwkvOffline.
 }
