@@ -128,11 +128,7 @@ class CardContentProvider : ContentProvider() {
         /** "kuma3/revlog": the review history, selection "since=?" (epoch ms, default all): id, cid, nid, did, ease, ivl, time, type. */
         private const val KUMA3_REVLOG = 7002
 
-        /**
-         * "kuma3/due": the cards kuma3 would show today, the deck list's own queue (RWKV-Instant, daily limits):
-         * cid, nid, ord, did, queue ("new" | "learn" | "review"). Selection "decks=?" (deck ids, comma-separated),
-         * default every top-level deck. For kumapie's word colours and ratings.
-         */
+        /** "kuma3/due": the cards kuma3 would show today (the deck list's queue: RWKV-Instant, daily limits), every top-level deck: cid, queue. */
         private const val KUMA3_DUE = 7003
 
         /** kuma3: "schedule" column: the queue the card comes from, "new" | "learn" | "review" (the count to underline). */
@@ -489,39 +485,16 @@ class CardContentProvider : ContentProvider() {
             }
             KUMA3_UNDO -> MatrixCursor(arrayOf("undo"), 1).apply { addRow(arrayOf<Any>(col.undoStatus().undo ?: "")) }
             KUMA3_DUE -> {
-                val wanted =
-                    if (selection?.trim() == "decks=?") {
-                        selectionArgs
-                            ?.firstOrNull()
-                            ?.split(',')
-                            ?.mapNotNull { it.trim().toLongOrNull() }
-                    } else {
-                        null
-                    }
-                val decks =
-                    wanted ?: col.sched
-                        .deckDueTree()
-                        .children
-                        .map { it.did }
                 val selectedBefore = col.decks.selected()
-                MatrixCursor(arrayOf("cid", "nid", "ord", "did", "queue")).apply {
+                MatrixCursor(arrayOf("cid", "queue")).apply {
                     try {
-                        // Each deck's queue as studying it builds it (the deck list counts the same way).
-                        for (did in decks) {
-                            if (!selectDeckWithCheck(col, did)) continue
+                        // Each top-level deck's queue as studying it builds it (the deck list counts the same way).
+                        for (deck in col.sched.deckDueTree().children) {
+                            col.decks.select(deck.did)
                             col.backend
                                 .getQueuedCards(fetchLimit = 100_000, intradayLearningOnly = false, skipSchedulingStates = true)
                                 .cardsList
-                                .forEach { q ->
-                                    val c = q.card
-                                    val queue =
-                                        when (c.queue) {
-                                            0 -> "new"
-                                            2 -> "review"
-                                            else -> "learn"
-                                        }
-                                    addRow(arrayOf<Any>(c.id, c.noteId, c.templateIdx, c.deckId, queue))
-                                }
+                                .forEach { addRow(arrayOf<Any>(it.card.id, queueName(it.card.queue))) }
                         }
                     } finally {
                         col.decks.select(selectedBefore)
@@ -1430,14 +1403,7 @@ class CardContentProvider : ContentProvider() {
                     rb.add(
                         JSONArray(col.media.filesInStr(currentCard)),
                     )
-                KUMA3_QUEUE ->
-                    rb.add(
-                        when (currentCard.queue.code) {
-                            0 -> "new"
-                            2 -> "review"
-                            else -> "learn"
-                        },
-                    )
+                KUMA3_QUEUE -> rb.add(queueName(currentCard.queue.code))
                 else -> throw UnsupportedOperationException("Queue \"$column\" is unknown")
             }
         }
@@ -1545,6 +1511,14 @@ class CardContentProvider : ContentProvider() {
             }
         }
     }
+
+    /** kuma3: a card's queue code as "new" | "learn" | "review" (kuma3_queue, kuma3/due). */
+    private fun queueName(code: Int) =
+        when (code) {
+            0 -> "new"
+            2 -> "review"
+            else -> "learn"
+        }
 
     private fun selectDeckWithCheck(
         col: Collection,
