@@ -4,7 +4,9 @@ package com.ichi2.anki.leaderboard
 
 import org.json.JSONArray
 import timber.log.Timber
+import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -75,7 +77,7 @@ internal object LeaderboardServer {
             }
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            return code to decode(stream?.use { it.readBytes() } ?: ByteArray(0))
+            return code to decode(stream?.use { it.readCapped() } ?: ByteArray(0))
         } finally {
             connection.disconnect()
         }
@@ -91,16 +93,33 @@ internal object LeaderboardServer {
             try {
                 when {
                     bytes.size > 2 && byte(0) == 0x1f && byte(1) == 0x8b ->
-                        GZIPInputStream(bytes.inputStream()).use { it.readBytes() }
+                        GZIPInputStream(bytes.inputStream()).use { it.readCapped() }
                     // zlib header: deflate method, and the two bytes are a multiple of 31
                     bytes.size > 2 && (byte(0) and 0x0f) == 8 && (byte(0) * 256 + byte(1)) % 31 == 0 ->
-                        InflaterInputStream(bytes.inputStream()).use { it.readBytes() }
+                        InflaterInputStream(bytes.inputStream()).use { it.readCapped() }
                     else -> bytes
                 }
             } catch (e: IOException) {
                 bytes
             }
         return unpacked.toString(Charsets.UTF_8)
+    }
+
+    /** The whole board is ~4 MB; anything far bigger is refused instead of filling the memory. */
+    private const val MAX_REPLY = 32 shl 20
+
+    /** Not an IOException, so [decode] can't take it for "not compressed". */
+    class ReplyTooBig : IllegalStateException("leaderboard reply over $MAX_REPLY bytes")
+
+    private fun InputStream.readCapped(): ByteArray {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(1 shl 16)
+        while (true) {
+            val read = read(buffer)
+            if (read < 0) return out.toByteArray()
+            out.write(buffer, 0, read)
+            if (out.size() > MAX_REPLY) throw ReplyTooBig()
+        }
     }
 }
 

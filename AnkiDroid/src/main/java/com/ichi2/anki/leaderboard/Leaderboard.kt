@@ -302,6 +302,7 @@ object Leaderboard {
             try {
                 JSONArray(cacheFile.readText())
             } catch (e: Exception) {
+                cacheFile.delete() // damaged: not parsed again at every redraw
                 return null
             }
         val wanted = group.replace(" ", "")
