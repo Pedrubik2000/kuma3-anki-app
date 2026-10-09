@@ -163,11 +163,9 @@ private object AcraCrashReporter : CrashReporter {
         toastText = ToastType.AUTO_TOAST.getToastMessage(application)
 
         // Setup logging and crash reporting
-        if (BuildConfig.DEBUG) {
-            setDebugACRAConfig(application.sharedPrefs())
-        } else {
-            setProductionACRAConfig(application.sharedPrefs())
-        }
+        // kuma3: never send crash reports, as in debug builds: ACRA_URL is AnkiDroid's server (ankidroid.org), and
+        // kuma3's crashes are not theirs to fix
+        setDebugACRAConfig(application.sharedPrefs())
         if (ACRA.isACRASenderServiceProcess() && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
             try {
                 setDataDirectorySuffix("acra")
