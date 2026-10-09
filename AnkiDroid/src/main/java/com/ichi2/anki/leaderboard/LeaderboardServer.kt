@@ -108,9 +108,6 @@ internal object LeaderboardServer {
     /** The whole board is ~4 MB; anything far bigger is refused instead of filling the memory. */
     private const val MAX_REPLY = 32 shl 20
 
-    /** Not an IOException, so [decode] can't take it for "not compressed". */
-    class ReplyTooBig : IllegalStateException("leaderboard reply over $MAX_REPLY bytes")
-
     private fun InputStream.readCapped(): ByteArray {
         val out = ByteArrayOutputStream()
         val buffer = ByteArray(1 shl 16)
@@ -118,7 +115,8 @@ internal object LeaderboardServer {
             val read = read(buffer)
             if (read < 0) return out.toByteArray()
             out.write(buffer, 0, read)
-            if (out.size() > MAX_REPLY) throw ReplyTooBig()
+            // IllegalStateException, not IOException: decode must not take it for "not compressed"
+            if (out.size() > MAX_REPLY) error("leaderboard reply over $MAX_REPLY bytes")
         }
     }
 }
