@@ -2,14 +2,11 @@
 
 package com.ichi2.anki.decktimes
 
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.anki.DeckPicker
+import com.ichi2.anki.utils.ext.launchCollectionInLifecycleScope
 import com.ichi2.anki.widgets.DeckAdapter
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -22,24 +19,22 @@ object DeckTimes {
         deckPicker: DeckPicker,
         adapter: DeckAdapter,
     ) {
-        deckPicker.lifecycleScope.launch {
-            deckPicker.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                deckPicker.viewModel.flowOfDecksReloaded.collect {
-                    try {
-                        // Settings > kuma3 > Time per deck
-                        adapter.timesToday =
-                            if (com.ichi2.anki.kuma3.Kuma3Settings.deckTimes) {
-                                com.ichi2.anki.kuma3.Kuma3Cache.get(
-                                    "deckTimes",
-                                ) { load() }
-                            } else {
-                                emptyMap()
-                            }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Timber.w(e, "deck times unavailable")
-                    }
+        with(deckPicker) {
+            viewModel.flowOfDecksReloaded.launchCollectionInLifecycleScope {
+                try {
+                    // Settings > kuma3 > Time per deck
+                    adapter.timesToday =
+                        if (com.ichi2.anki.kuma3.Kuma3Settings.deckTimes) {
+                            com.ichi2.anki.kuma3.Kuma3Cache.get(
+                                "deckTimes",
+                            ) { load() }
+                        } else {
+                            emptyMap()
+                        }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.w(e, "deck times unavailable")
                 }
             }
         }

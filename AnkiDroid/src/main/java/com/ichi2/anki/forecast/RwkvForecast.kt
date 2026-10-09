@@ -18,8 +18,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
 import anki.scheduler.RwkvOfflineForecastResponse
 import com.ichi2.anki.CollectionManager.withCol
@@ -28,8 +26,8 @@ import com.ichi2.anki.browser.toIntent
 import com.ichi2.anki.common.destinations.BrowserDestination
 import com.ichi2.anki.kuma3.Kuma3Cache
 import com.ichi2.anki.kuma3.Kuma3Settings
+import com.ichi2.anki.utils.ext.launchCollectionInLifecycleScope
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -68,21 +66,19 @@ object RwkvForecast {
     /** Recompute whenever the deck list reloads its counts (on resume, after reviews or a sync). */
     fun attach(deckPicker: DeckPicker) {
         deckPicker.deckPickerBinding.reviewSummaryTextView.movementMethod = LinkMovementMethod.getInstance()
-        deckPicker.lifecycleScope.launch {
-            deckPicker.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                deckPicker.viewModel.flowOfDecksReloaded.collect {
-                    try {
-                        // Settings > kuma3 > RWKV forecast
-                        // recall moves with the clock, so at most a minute old
-                        forecast = if (Kuma3Settings.rwkvForecast) Kuma3Cache.get("forecast", 60_000) { load() } else null
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Timber.w(e, "RWKV forecast unavailable")
-                        forecast = null
-                    }
-                    show(deckPicker, deckPicker.viewModel.flowOfStudiedTodayStats.value)
+        with(deckPicker) {
+            viewModel.flowOfDecksReloaded.launchCollectionInLifecycleScope {
+                try {
+                    // Settings > kuma3 > RWKV forecast
+                    // recall moves with the clock, so at most a minute old
+                    forecast = if (Kuma3Settings.rwkvForecast) Kuma3Cache.get("forecast", 60_000) { load() } else null
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.w(e, "RWKV forecast unavailable")
+                    forecast = null
                 }
+                show(deckPicker, viewModel.flowOfStudiedTodayStats.value)
             }
         }
     }

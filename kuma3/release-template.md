@@ -1,6 +1,6 @@
 **Which file?**
 - `kuma3-anki-arm64.apk`: **kuma3 Anki**, the app to use. Fast release build with its own icon, and its own collection folder (`kuma3`), so it installs next to AnkiDroid.
-- `kuma3-anki-debug-arm64.apk`: the older debug app (`com.ichi2.anki.debug`), for people who already have it. It updates in place; it will stop being published once everyone has moved to kuma3 Anki.
+- The older debug app (`com.ichi2.anki.debug`) is no longer published: move to kuma3 Anki (sync the debug app first, then sign in to AnkiWeb in kuma3 Anki and choose download).
 
 **What is in it**
 AnkiDroid 2.26.0alpha2 built against the JSchoreels FSRS-7 fork of Anki (26.09.3+fsrs7, build 96), with RWKV-Instant running on the device. Unofficial personal build: not from the AnkiDroid team, the Anki project or the fork's author.
@@ -17,6 +17,6 @@ AnkiDroid 2.26.0alpha2 built against the JSchoreels FSRS-7 fork of Anki (26.09.3
 
 **En español**
 - `kuma3-anki-arm64.apk` es **kuma3 Anki**, la app recomendada: más rápida, con su propio icono y su propia carpeta (`kuma3`), así que se instala junto a AnkiDroid.
-- `kuma3-anki-debug-arm64.apk` es la app anterior, para quien ya la tiene (se actualiza encima).
+- La app anterior (`com.ichi2.anki.debug`) ya no se publica: pásate a kuma3 Anki (sincroniza antes la app anterior, luego inicia sesión en AnkiWeb en kuma3 Anki y elige descargar).
 - Al abrir kuma3 Anki: permite "Acceso a todos los archivos", inicia sesión en AnkiWeb y elige descargar. Si usas dos apps de Anki, estudia en una sola y sincroniza antes de cambiar.
 - Versión personal no oficial (no es del equipo de AnkiDroid ni de Anki). Solo para móviles y tablets arm64.

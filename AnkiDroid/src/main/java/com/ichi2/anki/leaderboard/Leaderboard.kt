@@ -276,13 +276,9 @@ object Leaderboard {
         return rows.subList(start, start + max)
     }
 
-    private class Memo(
-        val key: String,
-        val board: Board,
-    )
-
+    /** The last board read, with the key it was read for. */
     @Volatile
-    private var memo: Memo? = null
+    private var memo: Pair<String, Board>? = null
 
     /**
      * The group board from the last server reply, with the add-on's home-screen rules: members who
@@ -293,8 +289,8 @@ object Leaderboard {
         withContext(Dispatchers.Default) {
             val dayStart = dayStart(LocalDateTime.now(), newDayHour)
             val key = listOf(group, username, cacheFile.lastModified(), prefs.getLong(KEY_UPDATED, 0), dayStart).joinToString("|")
-            memo?.takeIf { it.key == key }?.let { return@withContext it.board }
-            readBoard(dayStart)?.also { memo = Memo(key, it) }
+            memo?.takeIf { it.first == key }?.let { return@withContext it.second }
+            readBoard(dayStart)?.also { memo = key to it }
         }
 
     private fun readBoard(dayStart: LocalDateTime): Board? {
@@ -345,7 +341,7 @@ object Leaderboard {
             if (memberOf.none { it.replace(" ", "") == wanted }) continue
             val synced =
                 try {
-                    LocalDateTime.parse(item.optString(4), TIMESTAMP_PARSER)
+                    LocalDateTime.parse(item.optString(4).replace(' ', 'T')) // as written by [timestamp]
                 } catch (e: Exception) {
                     continue
                 }

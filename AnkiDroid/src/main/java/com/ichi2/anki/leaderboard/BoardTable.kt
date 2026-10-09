@@ -104,14 +104,17 @@ internal fun boardList(
                         parent: ViewGroup,
                         viewType: Int,
                     ) = object : RecyclerView.ViewHolder(
-                        FrameLayoutRow(parent.context),
+                        android.widget.FrameLayout(parent.context).apply {
+                            layoutParams =
+                                RecyclerView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                        },
                     ) {}
 
                     override fun onBindViewHolder(
                         holder: RecyclerView.ViewHolder,
                         position: Int,
                     ) {
-                        val frame = holder.itemView as FrameLayoutRow
+                        val frame = holder.itemView as android.widget.FrameLayout
                         val row = rows[position]
                         frame.removeAllViews()
                         frame.addView(line(cells(context, row, total, level)).apply { setBackgroundColor(rowColor(row)) })
@@ -130,15 +133,6 @@ internal fun boardList(
                 addView(list, LinearLayout.LayoutParams(widths.sum(), height))
             },
         )
-    }
-}
-
-/** One list row: a frame the row's cells are put into. */
-private class FrameLayoutRow(
-    context: Context,
-) : android.widget.FrameLayout(context) {
-    init {
-        layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 }
 

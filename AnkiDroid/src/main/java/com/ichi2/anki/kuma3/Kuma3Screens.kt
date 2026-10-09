@@ -12,8 +12,6 @@ import com.ichi2.anki.common.destinations.PreferencesDestination
 import com.ichi2.anki.common.destinations.StatisticsDestination
 import com.ichi2.anki.common.destinations.navigate
 import com.ichi2.anki.common.ui.TransitionDirection
-import com.ichi2.anki.notetype.ManageNotetypes
-import com.ichi2.anki.preferences.PreferencesActivity
 import timber.log.Timber
 
 /**
@@ -22,7 +20,7 @@ import timber.log.Timber
  *
  * screen = `stats` | `browser` (optional `search`, `deck_id`) | `add` (optional `deck_id`) | `edit` (`note_id` and the
  * card's template `ord`: the note editor on that card) | `deck_options` (optional
- * `deck_id`, else the current deck) | `settings` | `kuma3_settings` | `note_types`. It only opens a screen: nothing
+ * `deck_id`, else the current deck) | `settings`. It only opens a screen: nothing
  * goes back to the caller, and Back returns to it.
  */
 object Kuma3Screens {
@@ -68,8 +66,6 @@ object Kuma3Screens {
                 navigate(DeckOptionsDestination(deckId = did, isFiltered = decks.isFiltered(did)))
             }
             "settings" -> navigate(PreferencesDestination.Root)
-            "kuma3_settings" -> startActivity(PreferencesActivity.getIntent(this, Kuma3SettingsFragment::class))
-            "note_types" -> startActivity(Intent(this, ManageNotetypes::class.java))
             else -> Timber.w("kuma3: unknown screen %s", screen)
         }
     }

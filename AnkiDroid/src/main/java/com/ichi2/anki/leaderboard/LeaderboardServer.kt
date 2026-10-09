@@ -12,8 +12,6 @@ import java.net.URL
 import java.net.URLEncoder
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeFormatterBuilder
-import java.time.temporal.ChronoField
 import java.util.Locale
 import java.util.zip.GZIPInputStream
 import java.util.zip.InflaterInputStream
@@ -127,12 +125,3 @@ internal fun decimal(value: Double) = String.format(Locale.US, "%.1f", value)
 /** Python's `str(datetime.now())`. */
 internal fun timestamp(time: LocalDateTime) =
     time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + String.format(Locale.US, ".%06d", time.nano / 1000)
-
-/** Reads the server's sync times, written as by [timestamp]. */
-internal val TIMESTAMP_PARSER: DateTimeFormatter =
-    DateTimeFormatterBuilder()
-        .appendPattern("yyyy-MM-dd HH:mm:ss")
-        .optionalStart()
-        .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-        .optionalEnd()
-        .toFormatter()

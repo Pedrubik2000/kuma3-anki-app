@@ -12,13 +12,10 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
 import com.ichi2.anki.DeckPicker
+import com.ichi2.anki.utils.ext.launchCollectionInLifecycleScope
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.YearMonth
@@ -48,11 +45,7 @@ class HeatmapFooter(
     private var shown: LocalDate? = null
 
     init {
-        deckPicker.lifecycleScope.launch {
-            deckPicker.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                deckPicker.viewModel.flowOfDecksReloaded.collect { reload() }
-            }
-        }
+        with(deckPicker) { viewModel.flowOfDecksReloaded.launchCollectionInLifecycleScope { reload() } }
     }
 
     private suspend fun reload() {

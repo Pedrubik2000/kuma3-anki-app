@@ -8,12 +8,11 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
 import com.ichi2.anki.DeckPicker
 import com.ichi2.anki.kuma3.Kuma3Settings
+import com.ichi2.anki.utils.ext.launchCollectionInLifecycleScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -58,11 +57,7 @@ class LeaderboardFooter(
         current = WeakReference(this)
         // also whenever the deck list reloads (on resume, e.g. back from Settings > kuma3; after a
         // sync): the board is cached, so this is cheap
-        deckPicker.lifecycleScope.launch {
-            deckPicker.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                deckPicker.viewModel.flowOfDecksReloaded.collect { readBoard() }
-            }
-        }
+        with(deckPicker) { viewModel.flowOfDecksReloaded.launchCollectionInLifecycleScope { readBoard() } }
     }
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
