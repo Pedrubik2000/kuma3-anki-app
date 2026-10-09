@@ -289,6 +289,12 @@
                 <data android:mimeType="image/svg" />
             </intent-filter>
 
+            <!-- kuma3: open one of its screens for another app (kuma3 Skins), see kuma3/Kuma3Screens.kt -->
+            <intent-filter>
+                <action android:name="com.ichi2.anki.kuma3.OPEN_SCREEN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
             <!-- Tasker DO_SYNC intent -->
             <intent-filter>
                 <action android:name="com.ichi2.anki.DO_SYNC" />

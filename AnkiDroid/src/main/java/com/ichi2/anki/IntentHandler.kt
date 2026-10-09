@@ -29,6 +29,7 @@ import com.ichi2.anki.dialogs.DialogHandler.Companion.storeMessage
 import com.ichi2.anki.dialogs.DialogHandlerMessage
 import com.ichi2.anki.dialogs.requireDeckPickerOrShowError
 import com.ichi2.anki.exception.SystemStorageException
+import com.ichi2.anki.kuma3.Kuma3Screens
 import com.ichi2.anki.libanki.DeckId
 import com.ichi2.anki.settings.Prefs
 import com.ichi2.anki.shareddeck.SharedDecksDownloadFragment
@@ -101,6 +102,11 @@ class IntentHandler : AbstractIntentHandler() {
             LaunchType.SYNC -> runIfStoragePermissions { handleSyncIntent(reloadIntent, action) }
             LaunchType.REVIEW -> runIfStoragePermissions { handleReviewIntent(reloadIntent, intent) }
             LaunchType.OPEN_BROWSER -> runIfStoragePermissions { handleBrowserIntent(intent) }
+            LaunchType.KUMA3_SCREEN ->
+                runIfStoragePermissions {
+                    Kuma3Screens.open(this, intent)
+                    finish()
+                }
             LaunchType.DEFAULT_START_APP_IF_NEW -> {
                 Timber.d("onCreate() performing default action")
                 launchDeckPickerIfNoOtherTasks(reloadIntent)
@@ -348,6 +354,9 @@ class IntentHandler : AbstractIntentHandler() {
 
         /** `anki://x-callback-url/browser` deep link */
         OPEN_BROWSER,
+
+        /** kuma3: one of its screens for another app ([Kuma3Screens]) */
+        KUMA3_SCREEN,
         COPY_DEBUG_INFO,
     }
 
@@ -408,6 +417,8 @@ class IntentHandler : AbstractIntentHandler() {
                     textMimeTypes.contains(mimeType) -> LaunchType.TEXT_IMPORT
                     else -> LaunchType.FILE_IMPORT
                 }
+            } else if (action == Kuma3Screens.ACTION) {
+                LaunchType.KUMA3_SCREEN
             } else if ("com.ichi2.anki.DO_SYNC" == action) {
                 LaunchType.SYNC
             } else if (intent.hasExtra(EXTRA_DECK_ID)) {
@@ -437,6 +448,7 @@ class IntentHandler : AbstractIntentHandler() {
                 LaunchType.IMAGE_IMPORT,
                 LaunchType.SHARED_TEXT,
                 LaunchType.OPEN_BROWSER,
+                LaunchType.KUMA3_SCREEN,
                 -> true
                 LaunchType.COPY_DEBUG_INFO -> false
             }
