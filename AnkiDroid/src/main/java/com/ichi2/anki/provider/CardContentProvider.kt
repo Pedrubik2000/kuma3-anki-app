@@ -128,6 +128,13 @@ class CardContentProvider : ContentProvider() {
         /** "kuma3/revlog": the review history, selection "since=?" (epoch ms, default all): id, cid, nid, did, ease, ivl, time, type. */
         private const val KUMA3_REVLOG = 7002
 
+        /**
+         * "kuma3/due": the cards kuma3 would show today, the deck list's own queue (RWKV-Instant, daily limits):
+         * cid, nid, ord, did, queue ("new" | "learn" | "review"). Selection "decks=?" (deck ids, comma-separated),
+         * default every top-level deck. For kumapie's word colours and ratings.
+         */
+        private const val KUMA3_DUE = 7003
+
         /** kuma3: "schedule" column: the queue the card comes from, "new" | "learn" | "review" (the count to underline). */
         private const val KUMA3_QUEUE = "kuma3_queue"
 
@@ -210,6 +217,7 @@ class CardContentProvider : ContentProvider() {
             addUri("kuma3/today", KUMA3_TODAY)
             addUri("kuma3/undo", KUMA3_UNDO)
             addUri("kuma3/revlog", KUMA3_REVLOG)
+            addUri("kuma3/due", KUMA3_DUE)
         }
     }
 
@@ -246,7 +254,7 @@ class CardContentProvider : ContentProvider() {
             DECKS, DECK_SELECTED, DECKS_ID -> FlashCardsContract.Deck.CONTENT_TYPE
             CARDS -> FlashCardsContract.Card.CONTENT_TYPE
             CARD_ID -> FlashCardsContract.Card.CONTENT_ITEM_TYPE
-            KUMA3_TODAY, KUMA3_UNDO, KUMA3_REVLOG -> "vnd.android.cursor.dir/vnd.io.github.pedrubik2000.kuma3"
+            KUMA3_TODAY, KUMA3_UNDO, KUMA3_REVLOG, KUMA3_DUE -> "vnd.android.cursor.dir/vnd.io.github.pedrubik2000.kuma3"
             else -> throw IllegalArgumentException("uri $uri is not supported")
         }
     }
@@ -480,6 +488,46 @@ class CardContentProvider : ContentProvider() {
                 }
             }
             KUMA3_UNDO -> MatrixCursor(arrayOf("undo"), 1).apply { addRow(arrayOf<Any>(col.undoStatus().undo ?: "")) }
+            KUMA3_DUE -> {
+                val wanted =
+                    if (selection?.trim() == "decks=?") {
+                        selectionArgs
+                            ?.firstOrNull()
+                            ?.split(',')
+                            ?.mapNotNull { it.trim().toLongOrNull() }
+                    } else {
+                        null
+                    }
+                val decks =
+                    wanted ?: col.sched
+                        .deckDueTree()
+                        .children
+                        .map { it.did }
+                val selectedBefore = col.decks.selected()
+                MatrixCursor(arrayOf("cid", "nid", "ord", "did", "queue")).apply {
+                    try {
+                        // Each deck's queue as studying it builds it (the deck list counts the same way).
+                        for (did in decks) {
+                            if (!selectDeckWithCheck(col, did)) continue
+                            col.backend
+                                .getQueuedCards(fetchLimit = 100_000, intradayLearningOnly = false, skipSchedulingStates = true)
+                                .cardsList
+                                .forEach { q ->
+                                    val c = q.card
+                                    val queue =
+                                        when (c.queue) {
+                                            0 -> "new"
+                                            2 -> "review"
+                                            else -> "learn"
+                                        }
+                                    addRow(arrayOf<Any>(c.id, c.noteId, c.templateIdx, c.deckId, queue))
+                                }
+                        }
+                    } finally {
+                        col.decks.select(selectedBefore)
+                    }
+                }
+            }
             KUMA3_REVLOG -> {
                 val since = if (selection?.trim() == "since=?") selectionArgs?.firstOrNull()?.toLongOrNull() ?: 0 else 0
                 val columns = arrayOf("id", "cid", "nid", "did", "ease", "ivl", "time", "type")
