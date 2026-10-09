@@ -17,6 +17,7 @@ import android.database.sqlite.SQLiteQueryBuilder
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import androidx.core.net.toUri
+import anki.decks.SetDeckCollapsedRequest
 import anki.scheduler.CardAnswer
 import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.BuildConfig
@@ -115,6 +116,23 @@ class CardContentProvider : ContentProvider() {
         /** kuma3: update() of "notes/#/cards/#" with this boolean suspends (true) or unsuspends the card. */
         private const val KUMA3_SUSPEND = "kuma3_suspend"
         private const val CARD_ID = 6001
+
+        // kuma3: for kuma3 Skins (its companion reviewer app)
+
+        /** "kuma3/today": one row (cards, seconds) = "Studied N cards in M minutes today", counted like the deck list. */
+        private const val KUMA3_TODAY = 7000
+
+        /** "kuma3/undo": one row (undo) = what Undo would undo ("" = nothing); update() of it undoes that. */
+        private const val KUMA3_UNDO = 7001
+
+        /** "kuma3/revlog": the review history, selection "since=?" (epoch ms, default all): id, cid, nid, did, ease, ivl, time, type. */
+        private const val KUMA3_REVLOG = 7002
+
+        /** kuma3: "schedule" column: the queue the card comes from, "new" | "learn" | "review" (the count to underline). */
+        private const val KUMA3_QUEUE = "kuma3_queue"
+
+        /** kuma3: "decks" column (1 = collapsed in the deck list) and update() of "decks/#" with this boolean. */
+        private const val KUMA3_COLLAPSED = "kuma3_collapsed"
         private val uriMatcher = UriMatcher(UriMatcher.NO_MATCH)
 
         /**
@@ -189,6 +207,9 @@ class CardContentProvider : ContentProvider() {
             addUri("media", MEDIA)
             addUri("cards", CARDS)
             addUri("cards/#", CARD_ID)
+            addUri("kuma3/today", KUMA3_TODAY)
+            addUri("kuma3/undo", KUMA3_UNDO)
+            addUri("kuma3/revlog", KUMA3_REVLOG)
         }
     }
 
@@ -225,6 +246,7 @@ class CardContentProvider : ContentProvider() {
             DECKS, DECK_SELECTED, DECKS_ID -> FlashCardsContract.Deck.CONTENT_TYPE
             CARDS -> FlashCardsContract.Card.CONTENT_TYPE
             CARD_ID -> FlashCardsContract.Card.CONTENT_ITEM_TYPE
+            KUMA3_TODAY, KUMA3_UNDO, KUMA3_REVLOG -> "vnd.android.cursor.dir/vnd.io.github.pedrubik2000.kuma3"
             else -> throw IllegalArgumentException("uri $uri is not supported")
         }
     }
@@ -445,6 +467,32 @@ class CardContentProvider : ContentProvider() {
                     addDeckToCursor(it.did, it.fullDeckName, getDeckCountsFromDueTreeNode(it), rv, col, columns)
                 }
                 rv
+            }
+            KUMA3_TODAY -> {
+                // rslib's studied_today.sql: since the start of the day, without manual and rescheduled entries
+                val start = (col.sched.dayCutoff - 86_400) * 1000
+                MatrixCursor(arrayOf("cards", "seconds"), 1).apply {
+                    col.db
+                        .query(
+                            "select count(), coalesce(sum(time) / 1000.0, 0.0) from revlog where id > ? and type != 4 and type != 5",
+                            start,
+                        ).use { c -> if (c.moveToFirst()) addRow(arrayOf<Any>(c.getInt(0), c.getDouble(1))) }
+                }
+            }
+            KUMA3_UNDO -> MatrixCursor(arrayOf("undo"), 1).apply { addRow(arrayOf<Any>(col.undoStatus().undo ?: "")) }
+            KUMA3_REVLOG -> {
+                val since = if (selection?.trim() == "since=?") selectionArgs?.firstOrNull()?.toLongOrNull() ?: 0 else 0
+                val columns = arrayOf("id", "cid", "nid", "did", "ease", "ivl", "time", "type")
+                MatrixCursor(columns).apply {
+                    col.db
+                        .query(
+                            "select r.id, r.cid, c.nid, c.did, r.ease, r.ivl, r.time, r.type from revlog r " +
+                                "left join cards c on c.id = r.cid where r.id > ? order by r.id",
+                            since,
+                        ).use { c ->
+                            while (c.moveToNext()) addRow(Array<Any?>(columns.size) { i -> if (c.isNull(i)) null else c.getLong(i) })
+                        }
+                }
             }
             DECK_SELECTED -> {
                 val id = col.decks.selected()
@@ -786,7 +834,22 @@ class CardContentProvider : ContentProvider() {
                 }
             }
             DECKS -> throw IllegalArgumentException("Can't update decks in bulk")
-            DECKS_ID -> throw UnsupportedOperationException("Not yet implemented")
+            DECKS_ID -> {
+                // kuma3: only the deck list's collapsed state (kuma3 Skins' deck tree)
+                if (values?.containsKey(KUMA3_COLLAPSED) != true) throw UnsupportedOperationException("Not yet implemented")
+                col.decks.setCollapsed(
+                    uri.pathSegments[1].toLong(),
+                    values.getAsBoolean(KUMA3_COLLAPSED),
+                    SetDeckCollapsedRequest.Scope.REVIEWER,
+                )
+                updated++
+            }
+            KUMA3_UNDO -> {
+                if (col.undoStatus().undo != null) {
+                    col.undo()
+                    updated++
+                }
+            }
             DECK_SELECTED -> {
                 val valueSet = values!!.valueSet()
                 for ((key) in valueSet) {
@@ -1319,6 +1382,14 @@ class CardContentProvider : ContentProvider() {
                     rb.add(
                         JSONArray(col.media.filesInStr(currentCard)),
                     )
+                KUMA3_QUEUE ->
+                    rb.add(
+                        when (currentCard.queue.code) {
+                            0 -> "new"
+                            2 -> "review"
+                            else -> "learn"
+                        },
+                    )
                 else -> throw UnsupportedOperationException("Queue \"$column\" is unknown")
             }
         }
@@ -1418,6 +1489,7 @@ class CardContentProvider : ContentProvider() {
                     rb.add(config)
                 }
                 FlashCardsContract.Deck.DECK_DYN -> rb.add(col.decks.isFiltered(id))
+                KUMA3_COLLAPSED -> rb.add(if (col.decks.getLegacy(id)?.collapsed == true) 1 else 0)
                 FlashCardsContract.Deck.DECK_DESC -> {
                     val desc = col.decks.current().description
                     rb.add(desc)
