@@ -28,6 +28,9 @@ import timber.log.Timber
 object Kuma3Screens {
     const val ACTION = "com.ichi2.anki.kuma3.OPEN_SCREEN"
 
+    /** The manifest's permission-guarded alias: an explicit intent straight to IntentHandler is ignored. */
+    const val ENTRY = "com.ichi2.anki.kuma3.Kuma3ScreenEntry"
+
     fun open(
         activity: Activity,
         intent: Intent,

@@ -417,7 +417,7 @@ class IntentHandler : AbstractIntentHandler() {
                     textMimeTypes.contains(mimeType) -> LaunchType.TEXT_IMPORT
                     else -> LaunchType.FILE_IMPORT
                 }
-            } else if (action == Kuma3Screens.ACTION) {
+            } else if (action == Kuma3Screens.ACTION && intent.component?.className == Kuma3Screens.ENTRY) {
                 LaunchType.KUMA3_SCREEN
             } else if ("com.ichi2.anki.DO_SYNC" == action) {
                 LaunchType.SYNC

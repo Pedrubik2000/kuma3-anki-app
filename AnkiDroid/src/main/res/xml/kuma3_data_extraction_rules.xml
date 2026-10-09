@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- kuma3 (Android 12+): the leaderboard sign-in token (shared prefs "leaderboard") stays on this device.
+     Everything else is backed up as before. Android 11 and older: kuma3_backup_rules.xml. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="leaderboard.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="leaderboard.xml" />
+    </device-transfer>
+</data-extraction-rules>
