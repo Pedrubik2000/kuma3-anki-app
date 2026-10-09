@@ -10,6 +10,10 @@
 #   with the release key (secrets KUMA3_KEYSTORE_BASE64, KUMA3_KEYSTORE_PASSWORD)
 # - kuma3-anki-debug-arm64.apk: the older debug app (com.ichi2.anki.debug), signed with the debug key
 #   its users have (secret KUMA3_DEBUG_KEYSTORE_BASE64), so it still updates in place
+#
+# Two jobs, so the code that builds (crate build scripts, Gradle plugins, actions) never holds a token
+# that can write: "build" has a read-only token and uploads the APKs and the notes; "publish" runs no
+# third-party code and only creates the release. Actions are pinned to commits (tags can move).
 name: kuma3 build
 
 on:
@@ -21,7 +25,7 @@ on:
     - cron: '17 * * * *'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: kuma3-${{ github.ref }}
@@ -32,16 +36,19 @@ jobs:
     if: github.repository == 'Pedrubik2000/kuma3-anki-app'
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    outputs:
+      skip: ${{ steps.new.outputs.skip }}
+      app_sha: ${{ steps.new.outputs.app_sha }}
     env:
-      GH_TOKEN: ${{ github.token }}
       ANDROID_ARCH: arm64
       SKIP_ROBOLECTRIC: '1'
       NDK_VERSION: 29.0.14206865
     steps:
       - name: App source
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           path: Anki-Android
+          persist-credentials: false
 
       - name: Backend and core source (rwkv)
         run: |
@@ -53,6 +60,9 @@ jobs:
           echo "CORE_SHA=$(git -C Anki-Android-Backend/anki rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Anything new? (hourly runs)
+        id: new
+        env:
+          GH_TOKEN: ${{ github.token }} # read-only here
         run: |
           skip=0
           if [ "${{ github.event_name }}" = schedule ]; then
@@ -60,11 +70,12 @@ jobs:
             if grep -q "$APP_SHA" <<< "$body" && grep -q "$BACKEND_SHA" <<< "$body"; then skip=1; fi
           fi
           echo "SKIP=$skip" >> "$GITHUB_ENV"
+          printf 'skip=%s\napp_sha=%s\n' "$skip" "$APP_SHA" >> "$GITHUB_OUTPUT"
           echo "app $APP_SHA, backend $BACKEND_SHA, core $CORE_SHA; skip=$skip"
 
       - name: Java 21
         if: env.SKIP != '1'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '21'
@@ -73,7 +84,7 @@ jobs:
       - name: Rust cache
         id: rust-cache
         if: env.SKIP != '1'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           # the installed tools with cargo's list of them (the backend build checks that list)
           path: |
@@ -108,7 +119,7 @@ jobs:
 
       - name: Gradle cache
         if: env.SKIP != '1'
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
       - name: Backend (Rust and web pages)
         if: env.SKIP != '1'
@@ -124,7 +135,7 @@ jobs:
 
       - name: Save the Rust cache
         if: env.SKIP != '1' && steps.rust-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/bin
@@ -185,7 +196,11 @@ jobs:
           "$signer" verify --print-certs out/kuma3-anki-debug-arm64.apk | grep -q '33e879992202debe802aeb31d0f65ea9de3e7568058895c2183738a481e35ed6'
           (cd out && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
 
-      - name: Publish
+      - name: Forget the signing keys
+        if: always()
+        run: rm -f "$RUNNER_TEMP/kuma3-release.jks" "$RUNNER_TEMP/kuma3-debug.keystore"
+
+      - name: Release notes
         if: env.SKIP != '1'
         run: |
           source_lines() {
@@ -204,8 +219,6 @@ jobs:
             notes=Anki-Android/kuma3/release-notes/kuma3-${tag#v}.md
             [ -f "$notes" ] || { echo "::error::missing $notes"; exit 1; }
             { cat "$notes"; echo; cat Anki-Android/kuma3/release-template.md; echo; source_lines; } > notes.md
-            gh release create "$tag" out/*.apk out/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" \
-              --title "kuma3 Anki ${tag#v}" --notes-file notes.md --latest
           else
             {
               echo "Development build: the newest code, for trying things out. It changes with every push."
@@ -213,8 +226,42 @@ jobs:
               echo
               source_lines
             } > notes.md
-            gh release delete kuma3-dev --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
-            gh release create kuma3-dev out/*.apk out/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" \
-              --target "$APP_SHA" --prerelease --latest=false \
+          fi
+
+      - name: Hand the APKs to the publish job
+        if: env.SKIP != '1'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release
+          path: |
+            out/
+            notes.md
+          retention-days: 3
+
+  # the only job that can write: it runs gh and nothing else
+  publish:
+    needs: build
+    if: needs.build.outputs.skip != '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      APP_SHA: ${{ needs.build.outputs.app_sha }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release
+
+      - name: Publish
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag=${GITHUB_REF#refs/tags/}
+            gh release create "$tag" out/*.apk out/SHA256SUMS.txt --title "kuma3 Anki ${tag#v}" --notes-file notes.md --latest
+          else
+            gh release delete kuma3-dev --yes --cleanup-tag 2>/dev/null || true
+            gh release create kuma3-dev out/*.apk out/SHA256SUMS.txt --target "$APP_SHA" --prerelease --latest=false \
               --title "kuma3 Anki (development build)" --notes-file notes.md
           fi
