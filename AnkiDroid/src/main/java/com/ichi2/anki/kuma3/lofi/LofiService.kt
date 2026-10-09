@@ -18,7 +18,12 @@ class LofiService : MediaSessionService() {
         session = MediaSession.Builder(this, Lofi.player).setId("kuma3-lofi").build()
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = session
+    /**
+     * Only kuma3 itself (Media3's notification) and trusted controllers: the system UI, Bluetooth, apps with
+     * notification access. The service is exported for those, not for any app to drive the player.
+     */
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) =
+        session?.takeIf { controllerInfo.isTrusted || controllerInfo.packageName == packageName }
 
     /** Swiped away from recent apps: stop unless music is playing. */
     override fun onTaskRemoved(rootIntent: Intent?) {

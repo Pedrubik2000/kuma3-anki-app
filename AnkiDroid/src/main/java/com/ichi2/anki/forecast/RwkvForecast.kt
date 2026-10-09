@@ -4,10 +4,7 @@ package com.ichi2.anki.forecast
 
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorFilter
 import android.graphics.Paint
-import android.graphics.PixelFormat
-import android.graphics.drawable.Drawable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextPaint
@@ -20,6 +17,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
@@ -48,7 +46,7 @@ import timber.log.Timber
  * lowest-recall cards that are not due. due − waiting + minimum = the deck list's review count
  * (each card as its own deck's row counts it).
  *
- * Below the heatmap, a dot graph ([GraphFooter], Settings > kuma3 > RWKV forecast graph): one dot
+ * Below the heatmap, a dot graph ([GraphFooter], [GraphView], Settings > kuma3 > RWKV forecast graph): one dot
  * per review card at its recall now, in the counts' colours, with a red line at each desired
  * retention.
  */
@@ -186,13 +184,23 @@ object RwkvForecast {
         return out
     }
 
-    /** The graph's row below the heatmap (DeckPicker adds it to the deck list's ConcatAdapter). */
-    fun graphFooter(deckPicker: DeckPicker): RecyclerView.Adapter<*> = GraphFooter(deckPicker).also { graph = it }
+    /**
+     * The graph's row below the heatmap (DeckPicker adds it to the deck list's ConcatAdapter). Let go when the
+     * deck list is destroyed: the adapter holds its RecyclerView, and with it the whole activity.
+     */
+    fun graphFooter(deckPicker: DeckPicker): RecyclerView.Adapter<*> {
+        val footer = GraphFooter()
+        graph = footer
+        deckPicker.lifecycle.addObserver(
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_DESTROY && graph === footer) graph = null
+            },
+        )
+        return footer
+    }
 
     /** One row: a caption and the dot graph; no row without a forecast or with the switch off. */
-    private class GraphFooter(
-        private val deckPicker: DeckPicker,
-    ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    private class GraphFooter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private var cards: List<RwkvOfflineForecastResponse.Card>? = null
 
         fun show(cards: List<RwkvOfflineForecastResponse.Card>?) {
@@ -239,60 +247,21 @@ object RwkvForecast {
         }
     }
 
-    /** Draws [DotGraph] at the row's width. */
+    /**
+     * The deck options page's dot bar for the whole collection: one dot per card at its recall
+     * now (axis 60–100 %), stacked where they meet, a red line at each desired retention.
+     */
     private class GraphView(
         context: android.content.Context,
     ) : View(context) {
         var cards: List<RwkvOfflineForecastResponse.Card> = emptyList()
             set(value) {
                 field = value
-                graph = null
+                laidOutFor = 0
                 requestLayout()
                 invalidate()
             }
-        private var graph: DotGraph? = null
-
-        private fun graphFor(width: Int) =
-            graph?.takeIf { it.intrinsicWidth == width }
-                ?: DotGraph(cards, width, resources.displayMetrics.density).also { graph = it }
-
-        override fun onMeasure(
-            widthMeasureSpec: Int,
-            heightMeasureSpec: Int,
-        ) {
-            val width = MeasureSpec.getSize(widthMeasureSpec)
-            setMeasuredDimension(width, if (width > 0 && cards.isNotEmpty()) graphFor(width).intrinsicHeight else 0)
-        }
-
-        override fun onDraw(canvas: Canvas) {
-            if (width == 0 || cards.isEmpty()) return
-            graphFor(width).apply {
-                setBounds(0, 0, width, intrinsicHeight)
-                draw(canvas)
-            }
-        }
-    }
-
-    /** The card's colour now: due, minimum (added to reach minimum reviews per day), near or safe. */
-    private fun kindNow(card: RwkvOfflineForecastResponse.Card): Int {
-        val r = card.getRecall(0)
-        return when {
-            r < card.targetRetention -> DUE
-            card.minimumToday -> MINIMUM
-            r < card.targetRetention + NEAR_MARGIN -> NEAR
-            else -> SAFE
-        }
-    }
-
-    /**
-     * The deck options page's dot bar for the whole collection: one dot per card at its recall
-     * now (axis 60–100 %), stacked where they meet, a red line at each desired retention.
-     */
-    private class DotGraph(
-        cards: List<RwkvOfflineForecastResponse.Card>,
-        private val widthPx: Int,
-        density: Float,
-    ) : Drawable() {
+        private val density = resources.displayMetrics.density
         private val dot = 5 * density
         private val axis = 12 * density // tick labels
         private val pad = dot // keeps the end dots inside
@@ -303,12 +272,15 @@ object RwkvForecast {
                 textSize = 10 * density
                 textAlign = Paint.Align.CENTER
             }
-        private val targets = cards.map { it.targetRetention }.distinct()
-        private val dots: List<Triple<Float, Float, Int>> // x, height above the axis, colour
-        private val graphHeight: Float
+        private var laidOutFor = 0 // the width the dots were placed for
+        private var dots: List<Triple<Float, Float, Int>> = emptyList() // x, height above the axis, colour
+        private var graphHeight = 0f
 
-        init {
+        private fun x(recall: Float) = pad + (laidOutFor - 2 * pad) * ((recall - AXIS_MIN) / (1 - AXIS_MIN)).coerceIn(0f, 1f)
 
+        private fun layOut(width: Int) {
+            if (width == laidOutFor) return
+            laidOutFor = width
             val sorted = cards.sortedBy { it.getRecall(0) }
             val bins = sorted.map { ((x(it.getRecall(0)) - pad) / dot).toInt() }
             val tallest =
@@ -327,45 +299,50 @@ object RwkvForecast {
             graphHeight = (tallest - 1) * step + dot + 4 * density
         }
 
-        private fun x(recall: Float) = pad + (widthPx - 2 * pad) * ((recall - AXIS_MIN) / (1 - AXIS_MIN)).coerceIn(0f, 1f)
+        override fun onMeasure(
+            widthMeasureSpec: Int,
+            heightMeasureSpec: Int,
+        ) {
+            val width = MeasureSpec.getSize(widthMeasureSpec)
+            if (width == 0 || cards.isEmpty()) return setMeasuredDimension(width, 0)
+            layOut(width)
+            setMeasuredDimension(width, (graphHeight + axis).toInt())
+        }
 
-        override fun getIntrinsicWidth() = widthPx
-
-        override fun getIntrinsicHeight() = (graphHeight + axis).toInt()
-
-        override fun draw(canvas: Canvas) {
-            canvas.save()
-            canvas.translate(bounds.left.toFloat(), bounds.top.toFloat())
+        override fun onDraw(canvas: Canvas) {
+            if (width == 0 || cards.isEmpty()) return
+            layOut(width)
             val base = graphHeight
             paint.color = Color.GRAY
-            paint.strokeWidth = density(0.5f)
-            canvas.drawLine(pad, base, widthPx - pad, base, paint)
+            paint.strokeWidth = 0.5f * density
+            canvas.drawLine(pad, base, width - pad, base, paint)
             for ((cx, h, colour) in dots) {
                 paint.color = colour
                 canvas.drawCircle(cx, base - h, dot / 2, paint)
             }
             paint.color = DUE
-            paint.strokeWidth = density(1.5f)
-            for (t in targets) canvas.drawLine(x(t), 0f, x(t), base, paint)
+            paint.strokeWidth = 1.5f * density
+            for (t in cards.map { it.targetRetention }.distinct()) canvas.drawLine(x(t), 0f, x(t), base, paint)
             for (k in 0..4) {
                 val v = AXIS_MIN + (1 - AXIS_MIN) * k / 4
                 canvas.drawText("${Math.round(v * 100)}%", x(v), base + axis - 2 * dot / 5, text)
             }
-            canvas.restore()
         }
-
-        private fun density(dp: Float) = dp * dot / 5
-
-        override fun setAlpha(alpha: Int) = Unit
-
-        override fun setColorFilter(colorFilter: ColorFilter?) = Unit
-
-        @Deprecated("Deprecated in Java")
-        override fun getOpacity() = PixelFormat.TRANSLUCENT
 
         companion object {
             const val AXIS_MIN = 0.6f
             const val MAX_HEIGHT_DP = 60
+        }
+    }
+
+    /** The card's colour now: due, minimum (added to reach minimum reviews per day), near or safe. */
+    private fun kindNow(card: RwkvOfflineForecastResponse.Card): Int {
+        val r = card.getRecall(0)
+        return when {
+            r < card.targetRetention -> DUE
+            card.minimumToday -> MINIMUM
+            r < card.targetRetention + NEAR_MARGIN -> NEAR
+            else -> SAFE
         }
     }
 }
