@@ -30,7 +30,7 @@
         <SwitchPreferenceCompat
             android:key="@string/kuma3_rwkv_forecast_key"
             android:title="RWKV forecast"
-            android:summary="Under 'Studied today': review cards due, added by the daily minimum, near the line and safe now, and how many more become due in 1 h, 3 h and by tomorrow"
+            android:summary="Under 'Studied today': review cards due, added by the daily minimum, near the line and safe now, and how many more become due in 1 h, 3 h and by tomorrow. Not shown above 3000 review cards (too slow)"
             android:defaultValue="true" />
         <SwitchPreferenceCompat
             android:key="@string/kuma3_rwkv_forecast_graph_key"

@@ -83,9 +83,20 @@ object RwkvForecast {
         }
     }
 
+    /**
+     * Above this many review cards the forecast is skipped: it scores every review card at each
+     * offset, ~1.3 ms per card on a Pixel 8a, and holds the collection meanwhile (22k cards: 14 s of
+     * "Processing…" when a deck is opened after reviews).
+     */
+    private const val MAX_REVIEW_CARDS = 3000
+
     private suspend fun load(): RwkvOfflineForecastResponse? =
-        withCol { backend.rwkvOfflineForecast(search = "", offsetsSecs = OFFSETS) }
-            .takeIf { it.available && it.cardsCount > 0 }
+        withCol {
+            if (db.queryScalar("select count() from cards where type = 2 and queue >= 0") > MAX_REVIEW_CARDS) {
+                return@withCol null
+            }
+            backend.rwkvOfflineForecast(search = "", offsetsSecs = OFFSETS)
+        }?.takeIf { it.available && it.cardsCount > 0 }
 
     /** The summary line: "Studied … today", then the forecast when there is one. */
     fun show(
