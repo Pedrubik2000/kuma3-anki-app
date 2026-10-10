@@ -484,23 +484,15 @@ class CardContentProvider : ContentProvider() {
                 }
             }
             KUMA3_UNDO -> MatrixCursor(arrayOf("undo"), 1).apply { addRow(arrayOf<Any>(col.undoStatus().undo ?: "")) }
-            KUMA3_DUE -> {
-                val selectedBefore = col.decks.selected()
+            KUMA3_DUE ->
                 MatrixCursor(arrayOf("cid", "queue")).apply {
-                    try {
-                        // Each top-level deck's queue as studying it builds it (the deck list counts the same way).
-                        for (deck in col.sched.deckDueTree().children) {
-                            col.decks.select(deck.did)
-                            col.backend
-                                .getQueuedCards(fetchLimit = 100_000, intradayLearningOnly = false, skipSchedulingStates = true)
-                                .cardsList
-                                .forEach { addRow(arrayOf<Any>(it.card.id, queueName(it.card.queue))) }
-                        }
-                    } finally {
-                        col.decks.select(selectedBefore)
+                    // Each top-level deck's queue as studying it builds it (the deck list counts the same way), built
+                    // without selecting the deck: no "Select Deck" undo step, Undo still takes back kumapie's ratings.
+                    for (deck in col.sched.deckDueTree().children) {
+                        val queue = col.backend.getDeckQueue(deck.did)
+                        queue.cardIdsList.forEachIndexed { i, cid -> addRow(arrayOf<Any>(cid, queueName(queue.getQueuesValue(i)))) }
                     }
                 }
-            }
             KUMA3_REVLOG -> {
                 val since = if (selection?.trim() == "since=?") selectionArgs?.firstOrNull()?.toLongOrNull() ?: 0 else 0
                 val columns = arrayOf("id", "cid", "nid", "did", "ease", "ivl", "time", "type")
@@ -1512,7 +1504,7 @@ class CardContentProvider : ContentProvider() {
         }
     }
 
-    /** kuma3: a card's queue code as "new" | "learn" | "review" (kuma3_queue, kuma3/due). */
+    /** kuma3: a card's queue code as "new" | "learn" | "review" (kuma3_queue; kuma3/due passes QueuedCards.Queue: 0 new, 1 learning, 2 review). */
     private fun queueName(code: Int) =
         when (code) {
             0 -> "new"
