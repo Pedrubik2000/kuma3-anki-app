@@ -346,6 +346,7 @@ object RwkvOffline {
 
         File(dir, "model-small.bin").delete() // SM40, kuma3 v19-v20
         File(dir, "model-small-sm55.bin").delete() // SM55, kuma3 v21-v22
+        File(dir, "model-small-sm56.bin").delete() // SM56, kuma3 v23-v30
         dir.mkdirs()
         val tmp = File(dir, "${bundled.file}.tmp")
         context.assets.open(bundled.asset).use { input ->
