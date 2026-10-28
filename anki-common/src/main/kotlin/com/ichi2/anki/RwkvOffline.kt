@@ -322,7 +322,8 @@ object RwkvOffline {
     /**
      * Settings > kuma3 > RWKV state precision (R.string.kuma3_rwkv_precision_key): "f32", "int8" or
      * "int4" (card states; the backend keeps note states int8, whose int4 drift overflowed on long
-     * histories); anything else: the backend's default, int8 like the desktop fork.
+     * histories); anything else: the backend's int8 default. Desktop defaults to int4 cards / int8
+     * notes.
      */
     private fun statePrecision(context: Context) =
         kuma3Prefs(context).getString("kuma3_rwkv_precision", null)?.takeIf { it == "f32" || it == "int4" } ?: ""
