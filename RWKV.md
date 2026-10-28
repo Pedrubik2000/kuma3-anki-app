@@ -176,6 +176,62 @@ signed with a different key cannot be installed over an existing one: sync, then
   read it only through `Leaderboard.board()` (background, cached), and never draw a whole group as
   a table (some groups have over 1,000 members): the dialog uses a list that draws only visible rows.
 
+## RWKV queue refresh in Kuma 30
+
+From Kuma 22 until the fix in [Kuma 30](https://github.com/Pedrubik2000/kuma3-anki-app/releases/tag/v30),
+RWKV-Instant could update only the answered card's score during a session. The
+rest of the queue could keep its old order, the review count could decrease one
+at a time, and the count could jump after leaving the reviewer. Reports of the
+reviewer ending early may also be consistent with a queue that was not refreshed;
+the specific user reports were not reproduced on their devices.
+
+Kuma 30 refreshes the review queue after the configured number of answers, with
+one answer as the default, and also refreshes when the queue runs out before
+that interval. Its model history catches up before scoring if an answer could
+not be appended immediately. The setting controls queue rescoring; it does
+not mean that an answered review should be omitted from RWKV history. The
+optional approximate mode trades some queue-scoring work for speed; deck counts
+still use a complete score refresh.
+
+## Known RWKV differences after sync
+
+These observations apply to Kuma 30 and desktop fork builds through 108. Links
+below point to proposed changes; check the version installed on each device.
+
+- **Dynamic Preset Selection overlays:** If a synced add-on preset rule assigns
+  a non-numeric preset ID to a card with retained reviews, Kuma's offline RWKV
+  history preparation can fail with `missing stable id for add-on FSRS preset`.
+  Desktop derives a stable ID for these presets, but the current phone backend
+  does not supply one. The collection and review logs are still present; RWKV
+  cannot reliably prepare its state for the affected history until this is fixed.
+  A [Kuma core fix is proposed](https://github.com/Pedrubik2000/kuma3-anki-core/pull/6).
+- **Dynamic Desired Retention add-on:** Its search, note-field and grade rules
+  are desktop add-on settings and are not synced to Kuma. Desktop can use those
+  rules for review and Curve rescheduling; Kuma uses the available deck/preset
+  and native scheduler settings instead. This add-on is separate from the
+  fork's built-in FSRS Dynamic DR setting.
+  [Companion desktop add-on](https://github.com/JSchoreels/anki-addon-dynamic-desired-retention/pull/3)
+  and [Kuma core](https://github.com/Pedrubik2000/kuma3-anki-core/pull/7) changes
+  propose syncing and evaluating these rules. They require a desktop sync, a
+  rule-table save, another desktop sync, and then a Kuma sync to share existing
+  rules. Anki syncs collection configuration as a snapshot, so a stale device
+  can still remove or revert rules if it syncs newer unrelated changes.
+- **Old reviews downloaded to desktop:** In its incremental post-sync recovery,
+  the desktop fork can deliberately exclude newly downloaded reviews older than
+  its eight-day recovery window to avoid an unbounded replay. Kuma's offline
+  replay includes the retained reviews, so its state can differ. Desktop warns
+  when reviews are excluded; **Build Cache** in desktop Deck Options → RWKV
+  reconstructs the full retained history and clears that exclusion. The reviews
+  themselves are not deleted.
+  A [desktop fix is proposed](https://github.com/JSchoreels/anki/pull/22) to
+  rebuild the state automatically when older synced reviews require it.
+- **Add-on grade targets with native Dynamic DR:** Both desktop and the proposed
+  Kuma rule implementation can store a native grade-mapped retention that
+  differs from the exact add-on grade target used for the answer-button interval.
+  Coordinated fixes are proposed for the [desktop scheduler](https://github.com/JSchoreels/anki/pull/23),
+  [desktop add-on](https://github.com/JSchoreels/anki-addon-dynamic-desired-retention/pull/4),
+  and [Kuma core](https://github.com/Pedrubik2000/kuma3-anki-core/pull/9).
+
 ## Licences
 
 AnkiDroid is GPL-3.0-or-later; Anki and the fork are AGPL-3.0-or-later. These three repositories
