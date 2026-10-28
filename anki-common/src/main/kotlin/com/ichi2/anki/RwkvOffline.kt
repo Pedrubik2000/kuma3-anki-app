@@ -51,16 +51,17 @@ object RwkvOffline {
         val asset: String,
         val file: String,
         val bytes: Long,
+        val kind: String = "",
     )
 
     /** The desktop fork's 2.76M-parameter `RWKV_trained_on_5000_10000.bin` (the default). */
     private val BIG_MODEL = Model("rwkv/model.bin", "model.bin", 11_082_637L)
 
     /**
-     * JSchoreels' 331k-parameter model, SM56 (anki-rwkv release small-model-sm56-2026-10-24,
-     * `weights.f32.bin`; the fork's build 107). The backend picks its engine by the file.
+     * JSchoreels' 331k-parameter leak-free SM72 model. Its distinct file name forces installation
+     * even though its weights have the same size as SM56; its kind enables the backend's input rule.
      */
-    private val SMALL_MODEL = Model("rwkv/model-small.bin", "model-small-sm56.bin", 1_351_553L)
+    private val SMALL_MODEL = Model("rwkv/model-small.bin", "model-small-sm72.bin", 1_351_553L, "sm72")
 
     /**
      * "Rebuilding RWKV" is shown only when this many reviews are replayed: a rebuild of the state
@@ -127,9 +128,14 @@ object RwkvOffline {
     ) {
         try {
             val started = SystemClock.elapsedRealtime()
-            val model = installModel(context, if (smallModel(context)) SMALL_MODEL else BIG_MODEL)
+            val bundled = if (smallModel(context)) SMALL_MODEL else BIG_MODEL
+            val model = installModel(context, bundled)
             val replayed =
-                backend.rwkvPrepareOffline(modelPath = model.absolutePath, statePrecision = statePrecision(context))
+                backend.rwkvPrepareOffline(
+                    modelPath = model.absolutePath,
+                    statePrecision = statePrecision(context),
+                    modelKind = bundled.kind,
+                )
             Timber.i("RWKV prepare: replaying %s reviews in the background; %d ms", replayed, SystemClock.elapsedRealtime() - started)
             val announced = replayed >= TOAST_AFTER_REPLAYED && toastEnabled(context)
             if (announced) {

@@ -54,7 +54,7 @@ Backend (`kuma3-anki-core`, checked out as `Anki-Android-Backend/anki`):
 | File | Role |
 |---|---|
 | `rslib/src/scheduler/rwkv/offline.rs` | The whole offline layer: runtime, history replay, scoring, the hooks' entry points |
-| `rslib/src/rwkv/` (engine), `shape_big.rs`, `shape_small.rs`, `rslib/src/rwkv_small.rs` | The RWKV engine, compiled twice: `crate::rwkv` for the fork's 2.76M-parameter model and `crate::rwkv_small` for JSchoreels' 331k-parameter SM56 (interleaved layers, 3-power-curve head) |
+| `rslib/src/rwkv/` (engine), `shape_big.rs`, `shape_small.rs`, `rslib/src/rwkv_small.rs` | The RWKV engine, compiled twice: `crate::rwkv` for the fork's 2.76M-parameter model and `crate::rwkv_small` for JSchoreels' 331k-parameter SM72 (interleaved layers, 3-power-curve head) |
 | `rslib/src/scheduler/rwkv/offline_engine.rs` | Picks the engine by the model file the app passes (the small model's weights have `gru_w_weight`) |
 | `rslib/src/rwkv/small_model_tests.rs` | The small model against its package's golden vectors (`ANKI_RWKV_SMALL_MODEL`, `ANKI_RWKV_SMALL_VECTORS`) |
 | `rslib/src/scheduler/rwkv/offline_state.rs` | The state file `collection.rwkv-offline` next to the collection: a start loads it and replays only newer reviews |
@@ -68,7 +68,7 @@ App (this repository):
 
 | File | Role |
 |---|---|
-| `anki-common/.../RwkvOffline.kt` | Installs `assets/rwkv/model.bin` (big) or `model-small.bin` (Settings > kuma3 > RWKV model), calls `rwkvPrepareOffline` when the collection opens |
+| `anki-common/.../RwkvOffline.kt` | Installs `assets/rwkv/model.bin` (big) or `model-small.bin` (SM72), passes the model kind to `rwkvPrepareOffline` when the collection opens |
 | `AnkiDroid/.../heatmap/` | Review heatmap: `HeatmapData.kt` (counts from the collection), `HeatmapGrid.kt` (drawing, taps), `HeatmapFooter.kt` (its row below the decks: buttons, caption, stats line) |
 | `AnkiDroid/.../decktimes/DeckTimes.kt` | Time answered today per deck, shown on the deck rows |
 | `AnkiDroid/.../leaderboard/` | Leaderboard: `Leaderboard.kt` (account, upload, reading the board), `LeaderboardStats.kt` (the numbers, as the add-on's Stats.py), `LeaderboardServer.kt` (HTTP), `BoardTable.kt` (the table), `LeaderboardFooter.kt` (its row below the decks), `LeaderboardDialogs.kt` (sign-in, board, options) |
@@ -123,6 +123,8 @@ signed with a different key cannot be installed over an existing one: sync, then
   `rwkv_offline_host <collection copy.anki2> <model.bin> [scores.csv] [answer]`. It replays,
   scores, rebuilds and (with `answer`) answers four cards and compares the incrementally updated
   model state with a fresh replay. Use a copy of a collection, never the live file.
+  Set `KUMA3_RWKV_MODEL_KIND=sm72` when testing the SM72 weights so the backend
+  uses the model's leak-free input rule.
 - **App**: `./gradlew :AnkiDroid:compileFullDebugKotlin` compiles; AnkiDroid's pre-commit hook
   runs ktlint (`./gradlew ktlintFormat` fixes most findings).
 
@@ -151,5 +153,5 @@ AnkiDroid is GPL-3.0-or-later; Anki and the fork are AGPL-3.0-or-later. These th
 are the complete corresponding source for APKs built from them. The league shields and country
 flags under `assets/leaderboard` come from the Anki Leaderboard add-on, whose author marks them
 as free to reuse; `assets/rwkv/model.bin` is the fork's model file, and `assets/rwkv/model-small.bin`
-JSchoreels' small model (SM56: release `small-model-sm56-2026-10-24` of JSchoreels/anki-rwkv, the
-fork's build 107 `qt/aqt/rwkv_inference/sm56/weights.f32.bin`), shipped in kuma3 with his permission.
+JSchoreels' small model (SM72: release `small-model-sm72-2026-10-28` of JSchoreels/anki-rwkv,
+`qt/aqt/rwkv_inference/sm72/weights.f32.bin` in the desktop fork), shipped in kuma3 with his permission.

@@ -28,9 +28,9 @@
     <string name="kuma3_pref_rwkv_toast">Mensaje \'Reconstruyendo RWKV\'</string>
     <string name="kuma3_pref_rwkv_toast_summary">Se muestra cuando se reconstruye el estado de RWKV (primer inicio, después de una actualización), y una notificación cuando está listo</string>
     <string name="kuma3_pref_rwkv_model">Modelo RWKV</string>
-    <string name="kuma3_pref_rwkv_model_summary">%s. Grande: el modelo del fork de escritorio. Pequeño: el modelo SM56 de 331k parámetros de JSchoreels, alrededor de un 0,5 %% menos preciso (log loss, 723 usuarios de prueba), con reconstrucciones unas 4 veces más rápidas y cerca de un 40 %% menos de memoria (una colección de 203.000 repasos en un PC: 5 s en lugar de 22 s, 685 MB en lugar de 1,15 GB). Un cambio reconstruye el estado de RWKV a partir del historial de repasos</string>
+    <string name="kuma3_pref_rwkv_model_summary">%s. Esta elección es local; el fork de escritorio usa Pequeño por defecto. Grande es su modelo anterior. Pequeño es el modelo SM72 de 331k parámetros de JSchoreels, también usado por el fork de escritorio más reciente. Al cambiar de modelo se reconstruye el estado de RWKV a partir del historial de repasos</string>
     <string name="kuma3_pref_rwkv_precision">Precisión del estado de RWKV</string>
-    <string name="kuma3_pref_rwkv_precision_summary">%s. Cómo se guarda la memoria RWKV de cada tarjeta, como en el fork de escritorio: int8 usa cerca de un tercio de la memoria de f32 con la misma precisión; int4 en tarjetas / int8 en notas usa una cuarta parte menos que int8 y es un poco menos preciso. Un cambio reconstruye el estado de RWKV a partir del historial de repasos</string>
+    <string name="kuma3_pref_rwkv_precision_summary">%s. Esta elección es local; el fork de escritorio usa int4 en tarjetas / int8 en notas por defecto. int8 usa cerca de un tercio de la memoria de f32 con la misma precisión; int4 en tarjetas / int8 en notas usa una cuarta parte menos que int8 y es un poco menos preciso. Un cambio reconstruye el estado de RWKV a partir del historial de repasos</string>
     <string-array name="kuma3_rwkv_model_labels">
         <item>Grande (2,8 M parámetros, predeterminado)</item>
         <item>Pequeño (331k parámetros, menos memoria)</item>
