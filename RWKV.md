@@ -196,26 +196,23 @@ still use a complete score refresh.
 ## Known RWKV differences after sync
 
 These observations apply to Kuma 30 and desktop fork builds through 108. Links
-below point to proposed changes; check the version installed on each device.
+below point to proposed or merged changes; check the version installed on each device.
 
-- **Dynamic Preset Selection overlays:** If a synced add-on preset rule assigns
-  a non-numeric preset ID to a card with retained reviews, Kuma's offline RWKV
-  history preparation can fail with `missing stable id for add-on FSRS preset`.
-  Desktop derives a stable ID for these presets, but the current phone backend
-  does not supply one. The collection and review logs are still present; RWKV
-  cannot reliably prepare its state for the affected history until this is fixed.
-  A [Kuma core fix is proposed](https://github.com/Pedrubik2000/kuma3-anki-core/pull/6).
-- **Dynamic Desired Retention add-on:** Its search, note-field and grade rules
-  are desktop add-on settings and are not synced to Kuma. Desktop can use those
-  rules for review and Curve rescheduling; Kuma uses the available deck/preset
-  and native scheduler settings instead. This add-on is separate from the
-  fork's built-in FSRS Dynamic DR setting.
-  [Companion desktop add-on](https://github.com/JSchoreels/anki-addon-dynamic-desired-retention/pull/3)
-  and [Kuma core](https://github.com/Pedrubik2000/kuma3-anki-core/pull/7) changes
-  propose syncing and evaluating these rules. They require a desktop sync, a
-  rule-table save, another desktop sync, and then a Kuma sync to share existing
-  rules. Anki syncs collection configuration as a snapshot, so a stale device
-  can still remove or revert rules if it syncs newer unrelated changes.
+- **Dynamic Preset Selection overlays:** In Kuma 30, if a synced add-on preset
+  rule assigns a non-numeric preset ID to a card with retained reviews, Kuma's
+  offline RWKV history preparation can fail with `missing stable id for add-on FSRS preset`.
+  [Fixed for the next Kuma release](https://github.com/Pedrubik2000/kuma3-anki-core/pull/6):
+  Kuma derives the same stable ID as desktop.
+- **Dynamic Desired Retention add-on:** In Kuma 30, its search, note-field and
+  grade rules are desktop add-on settings that Kuma does not use; Kuma uses the
+  deck/preset and native scheduler settings instead. This add-on is separate
+  from the fork's built-in FSRS Dynamic DR setting. The next Kuma release
+  [evaluates the synced rules](https://github.com/Pedrubik2000/kuma3-anki-core/pull/7)
+  written by the [companion desktop add-on](https://github.com/JSchoreels/anki-addon-dynamic-desired-retention/pull/3).
+  Sharing existing rules needs a desktop sync, a rule-table save, another
+  desktop sync, and then a Kuma sync. Anki syncs collection configuration as a
+  snapshot, so a stale device can still remove or revert rules if it syncs
+  newer unrelated changes.
 - **Old reviews downloaded to desktop:** In its incremental post-sync recovery,
   the desktop fork can deliberately exclude newly downloaded reviews older than
   its eight-day recovery window to avoid an unbounded replay. Kuma's offline
@@ -225,12 +222,12 @@ below point to proposed changes; check the version installed on each device.
   themselves are not deleted.
   A [desktop fix is proposed](https://github.com/JSchoreels/anki/pull/22) to
   rebuild the state automatically when older synced reviews require it.
-- **Add-on grade targets with native Dynamic DR:** Both desktop and the proposed
-  Kuma rule implementation can store a native grade-mapped retention that
-  differs from the exact add-on grade target used for the answer-button interval.
-  Coordinated fixes are proposed for the [desktop scheduler](https://github.com/JSchoreels/anki/pull/23),
-  [desktop add-on](https://github.com/JSchoreels/anki-addon-dynamic-desired-retention/pull/4),
-  and [Kuma core](https://github.com/Pedrubik2000/kuma3-anki-core/pull/9).
+- **Add-on grade targets with native Dynamic DR:** Desktop can store a native
+  grade-mapped retention that differs from the exact add-on grade target used
+  for the answer-button interval. The next Kuma release
+  [keeps the exact target](https://github.com/Pedrubik2000/kuma3-anki-core/pull/9);
+  fixes are proposed for the [desktop scheduler](https://github.com/JSchoreels/anki/pull/23)
+  and [desktop add-on](https://github.com/JSchoreels/anki-addon-dynamic-desired-retention/pull/4).
 
 ## Licences
 
