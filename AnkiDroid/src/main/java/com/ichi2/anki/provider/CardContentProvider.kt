@@ -28,6 +28,7 @@ import com.ichi2.anki.common.crashreporting.CrashReportService
 import com.ichi2.anki.common.time.TimeManager
 import com.ichi2.anki.common.utils.annotation.KotlinCleanup
 import com.ichi2.anki.exception.StorageNotConfiguredException
+import com.ichi2.anki.isLoggedIn
 import com.ichi2.anki.libanki.Card
 import com.ichi2.anki.libanki.CardId
 import com.ichi2.anki.libanki.CardTemplate
@@ -48,6 +49,10 @@ import com.ichi2.anki.libanki.exception.ConfirmModSchemaException
 import com.ichi2.anki.libanki.exception.EmptyMediaException
 import com.ichi2.anki.libanki.sched.DeckNode
 import com.ichi2.anki.observability.ChangeManager
+import com.ichi2.anki.settings.Prefs
+import com.ichi2.anki.shouldFetchMedia
+import com.ichi2.anki.syncAuth
+import com.ichi2.anki.worker.SyncWorker
 import com.ichi2.utils.FileUtil
 import com.ichi2.utils.FileUtil.internalizeUri
 import com.ichi2.utils.Permissions.arePermissionsDefinedInManifest
@@ -124,6 +129,12 @@ class CardContentProvider : ContentProvider() {
 
         /** "kuma3/undo": one row (undo) = what Undo would undo ("" = nothing); update() of it undoes that. */
         private const val KUMA3_UNDO = 7001
+
+        /**
+         * "kuma3/sync": one row (last_sync, logged_in) = when the collection last synced (epoch ms) and whether there is
+         * an AnkiWeb login; update() of it starts a sync in the background (kumapie on a TV, where kuma3 is never opened).
+         */
+        private const val KUMA3_SYNC = 7004
 
         /** "kuma3/revlog": the review history, selection "since=?" (epoch ms, default all): id, cid, nid, did, ease, ivl, time, type. */
         private const val KUMA3_REVLOG = 7002
@@ -212,6 +223,7 @@ class CardContentProvider : ContentProvider() {
             addUri("cards/#", CARD_ID)
             addUri("kuma3/today", KUMA3_TODAY)
             addUri("kuma3/undo", KUMA3_UNDO)
+            addUri("kuma3/sync", KUMA3_SYNC)
             addUri("kuma3/revlog", KUMA3_REVLOG)
             addUri("kuma3/due", KUMA3_DUE)
         }
@@ -250,7 +262,7 @@ class CardContentProvider : ContentProvider() {
             DECKS, DECK_SELECTED, DECKS_ID -> FlashCardsContract.Deck.CONTENT_TYPE
             CARDS -> FlashCardsContract.Card.CONTENT_TYPE
             CARD_ID -> FlashCardsContract.Card.CONTENT_ITEM_TYPE
-            KUMA3_TODAY, KUMA3_UNDO, KUMA3_REVLOG, KUMA3_DUE -> "vnd.android.cursor.dir/vnd.io.github.pedrubik2000.kuma3"
+            KUMA3_TODAY, KUMA3_UNDO, KUMA3_REVLOG, KUMA3_DUE, KUMA3_SYNC -> "vnd.android.cursor.dir/vnd.io.github.pedrubik2000.kuma3"
             else -> throw IllegalArgumentException("uri $uri is not supported")
         }
     }
@@ -484,6 +496,10 @@ class CardContentProvider : ContentProvider() {
                 }
             }
             KUMA3_UNDO -> MatrixCursor(arrayOf("undo"), 1).apply { addRow(arrayOf<Any>(col.undoStatus().undo ?: "")) }
+            KUMA3_SYNC ->
+                MatrixCursor(arrayOf("last_sync", "logged_in"), 1).apply {
+                    addRow(arrayOf<Any>(Prefs.lastSyncTime, if (isLoggedIn()) 1 else 0))
+                }
             KUMA3_DUE ->
                 MatrixCursor(arrayOf("cid", "queue")).apply {
                     // Each top-level deck's queue as studying it builds it (the deck list counts the same way), built
@@ -860,6 +876,14 @@ class CardContentProvider : ContentProvider() {
             KUMA3_UNDO -> {
                 if (col.undoStatus().undo != null) {
                     col.undo()
+                    updated++
+                }
+            }
+            KUMA3_SYNC -> {
+                // In the background, as the deck list's automatic sync; a sync that is already running is kept.
+                val auth = syncAuth()
+                if (auth != null) {
+                    SyncWorker.start(context!!, auth, shouldFetchMedia())
                     updated++
                 }
             }
