@@ -29,6 +29,8 @@ open class AnkiServer(
                 try {
                     val data = runBlocking { postHandler.handlePostRequest(PostRequestUri(uri), inputBytes) }
                     buildResponse(data)
+                } catch (_: PendingResponseException) {
+                    newFixedLengthResponse(Response.Status.ACCEPTED, null, null)
                 } catch (exception: Exception) {
                     Timber.w(exception, "buildResponse failure")
                     buildResponse(exception.localizedMessage?.encodeToByteArray(), status = Response.Status.INTERNAL_ERROR)
@@ -54,6 +56,9 @@ open class AnkiServer(
         } else {
             newChunkedResponse(status, mimeType, ByteArrayInputStream(data))
         }
+
+    /** kuma3: the request's work is still running: answered with 202, which the page polls again. */
+    class PendingResponseException : Exception()
 
     companion object {
         const val LOCALHOST = "127.0.0.1"

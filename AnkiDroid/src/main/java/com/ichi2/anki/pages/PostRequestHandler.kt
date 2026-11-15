@@ -120,6 +120,20 @@ val collectionMethods =
         "rwkvOfflineInstantPassStep" to { bytes -> backend.rwkvOfflineInstantPassStepRaw(input = bytes) },
         "rwkvOfflineForecast" to { bytes -> backend.rwkvOfflineForecastRaw(input = bytes) },
         "rwkvOfflineCurveReschedule" to { bytes -> backend.rwkvOfflineCurveRescheduleRaw(input = bytes) },
+        // kuma3: Deck Options' RWKV workload simulation / "Compare RWKV with FSRS"
+        // (the desktop runs these in its Python; here the backend's offline layer)
+        "rwkvWorkloadAvailable" to { bytes -> backend.rwkvOfflineWorkloadAvailableRaw(input = bytes) },
+        "startRwkvWorkload" to { bytes -> backend.rwkvOfflineWorkloadStartRaw(input = bytes) },
+        "cancelRwkvWorkload" to { bytes -> backend.rwkvOfflineWorkloadCancelRaw(input = bytes) },
+        "rwkvWorkloadProgress" to { bytes -> backend.rwkvOfflineWorkloadProgressRaw(input = bytes) },
+        "rwkvWorkloadResult" to { _ ->
+            val out = backend.rwkvOfflineWorkloadResult()
+            when {
+                !out.done -> throw AnkiServer.PendingResponseException()
+                out.error.isNotEmpty() -> throw IllegalStateException(out.error)
+                else -> out.result.toByteArray()
+            }
+        },
         "getFsrsNewCardIntervals" to { bytes -> getFsrsNewCardIntervalsRaw(bytes) },
         // https://github.com/ankitects/anki/pull/4326 -> saveCustomColours should be no-op in mobile clients
         "saveCustomColours" to { bytes -> backendIdentity(bytes) },
