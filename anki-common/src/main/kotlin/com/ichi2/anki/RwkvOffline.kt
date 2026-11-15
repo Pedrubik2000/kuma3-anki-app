@@ -15,6 +15,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import anki.deck_config.RwkvProfileSettings
 import com.ichi2.anki.ankicommon.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,17 +52,45 @@ object RwkvOffline {
         val asset: String,
         val file: String,
         val bytes: Long,
-        val kind: String = "",
     )
 
-    /** The desktop fork's 2.76M-parameter `RWKV_trained_on_5000_10000.bin` (the default). */
-    private val BIG_MODEL = Model("rwkv/model.bin", "model.bin", 11_082_637L)
-
     /**
-     * JSchoreels' 331k-parameter leak-free SM72 model. Its distinct file name forces installation
-     * even though its weights have the same size as SM56; its kind enables the backend's input rule.
+     * A model size of the desktop fork (build 115): its two-head model (RWKV-Curve's intervals and
+     * S90, and RWKV-Instant when it runs alone) and its Instant model. The backend picks which run
+     * from the presets' schedulers, as the desktop. [desktopKey] is the desktop's profile value.
      */
-    private val SMALL_MODEL = Model("rwkv/model-small.bin", "model-small-sm72.bin", 1_351_553L, "sm72")
+    private class Size(
+        val key: String,
+        val desktopKey: String,
+        val twoHead: Model,
+        val instant: Model,
+    )
+
+    private val SIZES =
+        listOf(
+            // the show-time big model (SM91s2) and the show-time instant-only big model (SM99)
+            Size(
+                "big",
+                "legacy",
+                Model("rwkv/big.bin", "rwkv-sm91s2.bin", 11_082_637L),
+                Model("rwkv/big-instant.bin", "rwkv-sm99.bin", 11_082_637L),
+            ),
+            // the show-time retrain (SM92) and the Small Instant-Only model (SM98); the default
+            Size(
+                "small",
+                "sm72e25",
+                Model("rwkv/small.bin", "rwkv-sm92.bin", 1_351_553L),
+                Model("rwkv/small-instant.bin", "rwkv-sm98.bin", 1_351_553L),
+            ),
+            // the Tiny two-head model (SM106) and the Tiny Instant-Only model (SM101): one card layer
+            Size(
+                "tiny",
+                "tiny",
+                Model("rwkv/tiny.bin", "rwkv-sm106.bin", 1_270_749L),
+                Model("rwkv/tiny-instant.bin", "rwkv-sm101.bin", 1_270_749L),
+            ),
+        )
+    private const val DEFAULT_SIZE = "small"
 
     /**
      * "Rebuilding RWKV" is shown only when this many reviews are replayed: a rebuild of the state
@@ -128,13 +157,18 @@ object RwkvOffline {
     ) {
         try {
             val started = SystemClock.elapsedRealtime()
-            val bundled = if (smallModel(context)) SMALL_MODEL else BIG_MODEL
-            val model = installModel(context, bundled)
+            val size = size(context)
+            val twoHead = installModel(context, size.twoHead)
+            val instant = installModel(context, size.instant)
+            removeOtherModels(context, setOf(twoHead, instant))
             val replayed =
                 backend.rwkvPrepareOffline(
-                    modelPath = model.absolutePath,
+                    modelPath = twoHead.absolutePath,
                     statePrecision = statePrecision(context),
-                    modelKind = bundled.kind,
+                    // every model of the family is leak-free (SM72's input rule)
+                    modelKind = "sm72",
+                    instantModelPath = instant.absolutePath,
+                    singleModel = singleModel(context),
                 )
             Timber.i("RWKV prepare: replaying %s reviews in the background; %d ms", replayed, SystemClock.elapsedRealtime() - started)
             val announced = replayed >= TOAST_AFTER_REPLAYED && toastEnabled(context)
@@ -329,10 +363,51 @@ object RwkvOffline {
         kuma3Prefs(context).getString("kuma3_rwkv_precision", null)?.takeIf { it == "f32" || it == "int4" } ?: ""
 
     /**
-     * Settings > kuma3 > RWKV model (R.string.kuma3_rwkv_model_key): "small" for the small model,
-     * anything else the big one. A change rebuilds the state: the backend keys it by the model file.
+     * Settings > kuma3 > RWKV model (R.string.kuma3_rwkv_model_key): "big", "small" or "tiny"; Small
+     * when unset, as the desktop. A change rebuilds the state: the backend keys it by the model files.
      */
-    private fun smallModel(context: Context) = kuma3Prefs(context).getString("kuma3_rwkv_model", null) == "small"
+    private fun size(context: Context): Size {
+        val key = kuma3Prefs(context).getString("kuma3_rwkv_model", null)
+        return SIZES.firstOrNull { it.key == key } ?: SIZES.first { it.key == DEFAULT_SIZE }
+    }
+
+    /** Settings > kuma3 > Use one model for RWKV (R.string.kuma3_rwkv_single_model_key). */
+    private fun singleModel(context: Context) = kuma3Prefs(context).getBoolean("kuma3_rwkv_single_model", false)
+
+    /**
+     * The model choice as the desktop's Deck Options show it (its "Model size" section): kuma3's
+     * settings in the desktop's terms.
+     */
+    fun profileSettings(context: Context): RwkvProfileSettings =
+        RwkvProfileSettings
+            .newBuilder()
+            .setModel(size(context).desktopKey)
+            .setStatePrecision(
+                when (statePrecision(context)) {
+                    "f32" -> "f32"
+                    "int4" -> "cards_int4_notes_int8"
+                    else -> "int8"
+                },
+            ).setSingleModel(singleModel(context))
+            .build()
+
+    /**
+     * Stores a Deck Options save of the model choice in kuma3's settings; true when it changed (the
+     * caller prepares again). Older desktop small keys are Small, as the desktop saves them.
+     */
+    fun saveProfileSettings(
+        context: Context,
+        settings: RwkvProfileSettings,
+    ): Boolean {
+        val size = SIZES.firstOrNull { it.desktopKey == settings.model }?.key ?: DEFAULT_SIZE
+        if (size == size(context).key && settings.singleModel == singleModel(context)) return false
+        kuma3Prefs(context)
+            .edit()
+            .putString("kuma3_rwkv_model", size)
+            .putBoolean("kuma3_rwkv_single_model", settings.singleModel)
+            .apply()
+        return true
+    }
 
     private fun kuma3Prefs(context: Context) = context.getSharedPreferences(context.packageName + "_preferences", Context.MODE_PRIVATE)
 
@@ -344,9 +419,6 @@ object RwkvOffline {
         val model = File(dir, bundled.file)
         if (model.length() == bundled.bytes) return model
 
-        File(dir, "model-small.bin").delete() // SM40, kuma3 v19-v20
-        File(dir, "model-small-sm55.bin").delete() // SM55, kuma3 v21-v22
-        File(dir, "model-small-sm56.bin").delete() // SM56, kuma3 v23-v30
         dir.mkdirs()
         val tmp = File(dir, "${bundled.file}.tmp")
         context.assets.open(bundled.asset).use { input ->
@@ -356,6 +428,17 @@ object RwkvOffline {
         model.delete()
         if (!tmp.renameTo(model)) throw IOException("could not install the RWKV model")
         return model
+    }
+
+    /**
+     * Only the chosen size's two models stay installed (Big's are 11 MB each); this also removes
+     * the models of earlier versions (model.bin, model-small-sm72.bin, ...).
+     */
+    private fun removeOtherModels(
+        context: Context,
+        keep: Set<File>,
+    ) {
+        File(context.noBackupFilesDir, "rwkv").listFiles()?.filter { it.isFile && it !in keep }?.forEach { it.delete() }
     }
 
     // the app's showThemedToast is in the app module, which this module cannot see

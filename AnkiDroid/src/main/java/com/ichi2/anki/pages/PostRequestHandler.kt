@@ -17,7 +17,6 @@ import com.ichi2.anki.launchCatchingTask
 import com.ichi2.anki.libanki.Collection
 import com.ichi2.anki.libanki.completeTagRaw
 import com.ichi2.anki.libanki.getCsvMetadataRaw
-import com.ichi2.anki.libanki.getDeckConfigsForUpdateRaw
 import com.ichi2.anki.libanki.getDeckNamesRaw
 import com.ichi2.anki.libanki.getFieldNamesRaw
 import com.ichi2.anki.libanki.getImportAnkiPackagePresetsRaw
@@ -97,7 +96,7 @@ val collectionMethods =
         "completeTag" to { bytes -> completeTagRaw(bytes) },
         "getFieldNames" to { bytes -> getFieldNamesRaw(bytes) },
         "cardStats" to { bytes -> cardStatsRaw(bytes) },
-        "getDeckConfigsForUpdate" to { bytes -> getDeckConfigsForUpdateRaw(bytes) },
+        "getDeckConfigsForUpdate" to { bytes -> getDeckConfigsForUpdateWithRwkvModel(bytes) },
         "computeOptimalRetention" to { bytes -> computeOptimalRetentionRaw(bytes) },
         "computeFsrsParams" to { bytes -> computeFsrsParamsRaw(bytes) },
         "evaluateParamsLegacy" to { bytes -> evaluateParamsLegacyRaw(bytes) },

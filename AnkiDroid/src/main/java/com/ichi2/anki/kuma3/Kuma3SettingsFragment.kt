@@ -30,7 +30,7 @@ class Kuma3SettingsFragment : SettingsFragment() {
                 }
         }
         // the backend rebuilds the RWKV state for the new model or precision right away
-        for (key in listOf(R.string.kuma3_rwkv_model_key, R.string.kuma3_rwkv_precision_key)) {
+        for (key in listOf(R.string.kuma3_rwkv_model_key, R.string.kuma3_rwkv_single_model_key, R.string.kuma3_rwkv_precision_key)) {
             requirePreference<Preference>(key).setOnPreferenceChangeListener { _, _ ->
                 view?.post { RwkvOffline.prepareAfterOpen(requireContext().applicationContext, now = true) }
                 true

@@ -390,7 +390,7 @@ object SearchStatsExtended {
     }
 
     private fun rwkvMsPerReview() =
-        if (AnkiDroidApp.sharedPrefs().getString("kuma3_rwkv_model", "big") == "small") {
+        if (AnkiDroidApp.sharedPrefs().getString("kuma3_rwkv_model", "small") != "big") {
             RWKV_SMALL_MS_PER_REVIEW
         } else {
             RWKV_BIG_MS_PER_REVIEW

@@ -14,19 +14,25 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import anki.collection.ComputeParamsProgress
 import anki.collection.OpChanges
+import anki.deck_config.DeckConfigsForUpdate
+import anki.deck_config.RwkvCollectionCounts
 import anki.deck_config.UpdateDeckConfigsMode
 import anki.deck_config.UpdateDeckConfigsRequest
 import com.google.android.material.appbar.MaterialToolbar
+import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.CollectionManager.TR
 import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.anki.CommonString
 import com.ichi2.anki.ProgressContext
 import com.ichi2.anki.R
+import com.ichi2.anki.RwkvOffline
 import com.ichi2.anki.SingleFragmentActivity
 import com.ichi2.anki.common.annotations.NeedsTest
 import com.ichi2.anki.common.crashreporting.CrashReportService
 import com.ichi2.anki.launchCatchingTask
+import com.ichi2.anki.libanki.Collection
 import com.ichi2.anki.libanki.DeckId
+import com.ichi2.anki.libanki.getDeckConfigsForUpdateRaw
 import com.ichi2.anki.libanki.updateDeckConfigsRaw
 import com.ichi2.anki.observability.undoableOp
 import com.ichi2.anki.settings.Prefs
@@ -447,7 +453,29 @@ class DeckOptions : PageFragment() {
     }
 }
 
+/**
+ * kuma3: the desktop's "Model size" section of Deck Options > RWKV > Advanced shows kuma3's model
+ * settings (on the desktop, its Python fills them from the profile).
+ */
+fun Collection.getDeckConfigsForUpdateWithRwkvModel(input: ByteArray): ByteArray =
+    DeckConfigsForUpdate
+        .parseFrom(getDeckConfigsForUpdateRaw(input))
+        .toBuilder()
+        .setRwkvProfileSettings(RwkvOffline.profileSettings(AnkiDroidApp.instance))
+        .setRwkvCollectionCounts(
+            RwkvCollectionCounts
+                .newBuilder()
+                .setCards(cardCount().toLong())
+                .setNotes(noteCount().toLong()),
+        ).build()
+        .toByteArray()
+
 suspend fun FragmentActivity.updateDeckConfigsRaw(input: ByteArray): ByteArray {
+    val request = UpdateDeckConfigsRequest.parseFrom(input)
+    // kuma3: a model size or "Use one model" saved there goes to kuma3's settings
+    if (request.hasRwkvProfileSettings()) {
+        RwkvOffline.saveProfileSettings(applicationContext, request.rwkvProfileSettings)
+    }
     val output =
         withContext(Dispatchers.Main) {
             withProgress(
@@ -463,8 +491,11 @@ suspend fun FragmentActivity.updateDeckConfigsRaw(input: ByteArray): ByteArray {
             }
         }
     undoableOp { OpChanges.parseFrom(output) }
+    // kuma3: the model choice, or the presets' schedulers (which models run), may have changed;
+    // unchanged, this only brings the RWKV state up to date
+    RwkvOffline.prepareAfterOpen(applicationContext, now = true)
     withContext(Dispatchers.Main) {
-        if (UpdateDeckConfigsRequest.parseFrom(input).mode == UpdateDeckConfigsMode.UPDATE_DECK_CONFIGS_MODE_COMPUTE_ALL_PARAMS) {
+        if (request.mode == UpdateDeckConfigsMode.UPDATE_DECK_CONFIGS_MODE_COMPUTE_ALL_PARAMS) {
             // Anki 26.05 relies on us to request a reload; 26.09 also requests one from JavaScript.
             // Both requests share a flag, so the page reloads once, after reading this response.
             requireDeckOptionsFragment().reloadAfterSave()

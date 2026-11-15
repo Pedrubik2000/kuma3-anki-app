@@ -15,12 +15,14 @@
     <string name="kuma3_rwkv_toast_key" translatable="false">kuma3_rwkv_toast</string>
     <string name="kuma3_rwkv_precision_key" translatable="false">kuma3_rwkv_precision</string>
     <string name="kuma3_rwkv_model_key" translatable="false">kuma3_rwkv_model</string>
+    <string name="kuma3_rwkv_single_model_key" translatable="false">kuma3_rwkv_single_model</string>
     <string name="kuma3_answer_fade_key" translatable="false">kuma3_answer_fade</string>
     <string name="kuma3_update_check_key" translatable="false">kuma3_update_check</string>
     <string name="kuma3_update_now_key" translatable="false">kuma3_update_now</string>
     <string-array name="kuma3_rwkv_model_values" translatable="false">
         <item>big</item>
         <item>small</item>
+        <item>tiny</item>
     </string-array>
     <string-array name="kuma3_rwkv_precision_values" translatable="false">
         <item>int8</item>

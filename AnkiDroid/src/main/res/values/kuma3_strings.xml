@@ -29,12 +29,15 @@
     <string name="kuma3_pref_rwkv_toast" maxLength="41">\'Rebuilding RWKV\' message</string>
     <string name="kuma3_pref_rwkv_toast_summary">Shown when the RWKV state is rebuilt (first start, after an update), and a notification when it is ready</string>
     <string name="kuma3_pref_rwkv_model" maxLength="41">RWKV model</string>
-    <string name="kuma3_pref_rwkv_model_summary">%s. This choice is local; the desktop fork defaults to Small. Big is its legacy model. Small is JSchoreels\' 331k-parameter SM72 model, also used by the newer desktop fork. Changing models rebuilds the RWKV state from the review history</string>
+    <string name="kuma3_pref_rwkv_model_summary">%s. The desktop fork\'s model sizes, also in Deck Options > RWKV > Advanced. This choice is local. Changing it rebuilds the RWKV state from the review history</string>
+    <string name="kuma3_pref_rwkv_single_model" maxLength="41">Use one model for RWKV</string>
+    <string name="kuma3_pref_rwkv_single_model_summary">When your presets use both RWKV-Instant and RWKV-Curve, each normally uses its own model of the chosen size. On: the size\'s Curve model for both, less memory, slightly less accurate Instant predictions</string>
     <string name="kuma3_pref_rwkv_precision" maxLength="41">RWKV state precision</string>
     <string name="kuma3_pref_rwkv_precision_summary">%s. This choice is local; the desktop fork defaults to int4 cards / int8 notes. int8 uses about a third of f32\'s memory with the same accuracy; int4 cards / int8 notes a quarter less than int8, slightly less accurate. A change rebuilds the RWKV state from the review history</string>
     <string-array name="kuma3_rwkv_model_labels">
-        <item>Big (2.8M parameters, default)</item>
-        <item>Small (331k parameters, less memory)</item>
+        <item>Big (most accurate, most memory)</item>
+        <item>Small (default)</item>
+        <item>Tiny (least memory)</item>
     </string-array>
     <string-array name="kuma3_rwkv_precision_labels">
         <item>int8 (default)</item>

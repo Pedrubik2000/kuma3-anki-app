@@ -48,8 +48,13 @@
             android:title="@string/kuma3_pref_rwkv_model"
             android:entries="@array/kuma3_rwkv_model_labels"
             android:entryValues="@array/kuma3_rwkv_model_values"
-            android:defaultValue="big"
+            android:defaultValue="small"
             android:summary="@string/kuma3_pref_rwkv_model_summary" />
+        <SwitchPreferenceCompat
+            android:key="@string/kuma3_rwkv_single_model_key"
+            android:title="@string/kuma3_pref_rwkv_single_model"
+            android:summary="@string/kuma3_pref_rwkv_single_model_summary"
+            android:defaultValue="false" />
         <ListPreference
             android:key="@string/kuma3_rwkv_precision_key"
             android:title="@string/kuma3_pref_rwkv_precision"
