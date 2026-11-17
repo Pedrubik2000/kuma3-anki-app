@@ -214,6 +214,8 @@ object RwkvOffline {
                 try {
                     // ponytail: polls (the backend can't call back); a callback from the build thread if it matters
                     var polls = 0
+                    var lastDone = -1L
+                    var stalledPolls = 0
                     while (true) {
                         delay(READY_POLL_MS)
                         val status =
@@ -230,8 +232,20 @@ object RwkvOffline {
                             return@launch
                         }
                         progress.update(status.replayDone, status.replayTotal)
-                        // a replay still under way may take longer than the polls (4M reviews: ~10 min)
-                        if (++polls >= READY_POLLS && status.replayTotal == 0L) return@launch
+                        if (status.replayDone == lastDone) stalledPolls++ else stalledPolls = 0
+                        lastDone = status.replayDone
+                        // a replay still under way may take longer than the polls (4M reviews: ~10 min); one that
+                        // stopped moving (a build that died mid-replay leaves its total set) is given up, or the
+                        // poll and the rebuild service's wake lock kept a phone awake all night
+                        if (++polls >= READY_POLLS && (status.replayTotal == 0L || stalledPolls >= READY_POLLS)) {
+                            Timber.w(
+                                "RWKV not ready after %d polls (replay %d/%d); stopped waiting",
+                                polls,
+                                status.replayDone,
+                                status.replayTotal,
+                            )
+                            return@launch
+                        }
                     }
                 } finally {
                     progress.cancel()

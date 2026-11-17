@@ -20,6 +20,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.util.Linkify
 import android.view.KeyEvent
 import android.view.Menu
@@ -218,6 +219,7 @@ import com.ichi2.utils.showDialogIfWebViewOutdated
 import com.ichi2.utils.title
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -321,6 +323,9 @@ open class DeckPicker :
     }
 
     private var syncMediaProgressJob: Job? = null
+
+    /** When the media sync bar was first shown for the running sync (0: none running). */
+    private var mediaSyncBarSince = 0L
 
     // flag keeping track of when the app has been paused
     var activityPaused = false
@@ -1265,13 +1270,26 @@ open class DeckPicker :
         syncMediaProgressJob =
             lifecycleScope.launch {
                 flow.flowWithLifecycle(lifecycle).collectLatest {
-                    val workInfo = it.lastOrNull()
-                    if (workInfo?.state == WorkInfo.State.RUNNING && progressIndicator?.isVisible == false) {
-                        Timber.i("DeckPicker: Showing media sync progress indicator")
-                        progressIndicator.isVisible = true
-                    } else if (progressIndicator?.isVisible == true) {
-                        Timber.i("DeckPicker: Hiding media sync progress indicator")
-                        progressIndicator.isVisible = false
+                    val running = it.lastOrNull()?.state == WorkInfo.State.RUNNING
+                    // kuma3: the bar redraws every frame; a media sync that never ends kept a phone left on
+                    // the deck list busy all night. After a minute only the notification shows progress.
+                    val now = SystemClock.elapsedRealtime()
+                    if (!running) {
+                        mediaSyncBarSince = 0
+                    } else if (mediaSyncBarSince == 0L) {
+                        mediaSyncBarSince = now
+                    }
+                    val left = mediaSyncBarSince + MEDIA_SYNC_BAR_MS - now
+                    val show = running && left > 0
+                    if (progressIndicator != null && progressIndicator.isVisible != show) {
+                        Timber.i("DeckPicker: %s media sync progress indicator", if (show) "Showing" else "Hiding")
+                        progressIndicator.isVisible = show
+                    }
+                    // cancelled by the next emission (collectLatest)
+                    if (show) {
+                        delay(left)
+                        Timber.i("DeckPicker: Hiding media sync progress indicator after a minute")
+                        progressIndicator?.isVisible = false
                     }
                 }
             }
@@ -2449,6 +2467,9 @@ open class DeckPicker :
          * be swapped for one another.
          */
         private const val BOTTOM_NAV_HEIGHT_DP = 80
+
+        /** kuma3: how long the media sync bar animates; the notification shows the rest. */
+        private const val MEDIA_SYNC_BAR_MS = 60_000L
 
         /**
          * Result codes from other activities
