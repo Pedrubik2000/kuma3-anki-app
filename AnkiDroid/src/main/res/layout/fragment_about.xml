@@ -153,6 +153,13 @@
                         style="@style/Widget.Material3.Button.TextButton"
                         android:textColor="?attr/colorAccent"/>
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/crash_log"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/kuma3_crash_log_entry"
+                        android:textColor="?attr/colorAccent"
+                        style="@style/Widget.Material3.Button.TextButton"/>
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/copy_debug_info"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"

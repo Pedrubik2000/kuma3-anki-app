@@ -108,6 +108,10 @@ class AboutFragment : Fragment(R.layout.fragment_about) {
 
         binding.copyDebugInfo.text = TR.sentenceCase.copyDebugInfo
         binding.copyDebugInfo.setOnClickListener { copyDebugInfo() }
+        binding.crashLog.setOnClickListener {
+            com.ichi2.anki.kuma3.CrashLog
+                .show(requireActivity())
+        }
     }
 
     /**

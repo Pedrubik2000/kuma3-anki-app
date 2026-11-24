@@ -170,6 +170,10 @@ open class AnkiDroidApp :
     override fun onCreate() {
         initAnkiBackend(debugTraceSqlCalls = false)
         super.onCreate()
+        if (!isAcraSenderProcess()) {
+            com.ichi2.anki.kuma3.CrashLog
+                .install(this) // kuma3: local crash log (ACRA stays off)
+        }
         if (!setupAnkiDroidApp()) {
             return
         }

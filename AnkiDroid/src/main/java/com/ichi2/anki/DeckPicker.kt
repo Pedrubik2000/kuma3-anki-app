@@ -1555,6 +1555,8 @@ open class DeckPicker :
         val message = dialogHandler.popMessage()
         super.onResume()
         XpChrome.resume(this) // kuma3: Anki XP Player box
+        com.ichi2.anki.kuma3.CrashLog
+            .showIfUnseen(this) // kuma3: local crash log
         if (navDrawerIsReady() && hasCollectionStoragePermissions()) {
             refreshState()
         }

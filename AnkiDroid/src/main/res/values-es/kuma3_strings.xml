@@ -320,4 +320,14 @@
         <item quantity="other">%1$s tarjetas pendientes el %2$s</item>
         <item quantity="many">%1$s tarjetas pendientes el %2$s</item>
     </plurals>
+    <string name="kuma3_crash_title">kuma3 se cerró inesperadamente</string>
+    <string name="kuma3_crash_message">Se guardó un registro del fallo. Puedes copiarlo o compartirlo para que se pueda corregir.</string>
+    <string name="kuma3_crash_copy" maxLength="41">Copiar</string>
+    <string name="kuma3_crash_share" maxLength="41">Compartir</string>
+    <string name="kuma3_crash_close" maxLength="41">Cerrar</string>
+    <string name="kuma3_crash_copied">Registro copiado</string>
+    <string name="kuma3_crash_copy_failed">No se pudo copiar el registro</string>
+    <string name="kuma3_crash_none">No hay ningún fallo guardado</string>
+    <string name="kuma3_crash_share_failed">No se pudo compartir el registro</string>
+    <string name="kuma3_crash_log_entry">Registro de fallos</string>
 </resources>

@@ -311,4 +311,15 @@
         <item quantity="one">%1$s card due on %2$s</item>
         <item quantity="other">%1$s cards due on %2$s</item>
     </plurals>
+    <!-- Local crash log (kuma3/CrashLog.kt) -->
+    <string name="kuma3_crash_title">kuma3 closed unexpectedly</string>
+    <string name="kuma3_crash_message">A crash log was saved. You can copy it or share it so it can be fixed.</string>
+    <string name="kuma3_crash_copy" maxLength="41">Copy</string>
+    <string name="kuma3_crash_share" maxLength="41">Share</string>
+    <string name="kuma3_crash_close" maxLength="41">Close</string>
+    <string name="kuma3_crash_copied">Crash log copied</string>
+    <string name="kuma3_crash_copy_failed">Could not copy the crash log</string>
+    <string name="kuma3_crash_none">No crash saved</string>
+    <string name="kuma3_crash_share_failed">Could not share the crash log</string>
+    <string name="kuma3_crash_log_entry">Crash log</string>
 </resources>
