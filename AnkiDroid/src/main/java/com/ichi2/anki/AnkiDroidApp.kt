@@ -170,10 +170,6 @@ open class AnkiDroidApp :
     override fun onCreate() {
         initAnkiBackend(debugTraceSqlCalls = false)
         super.onCreate()
-        if (!isAcraSenderProcess()) {
-            com.ichi2.anki.kuma3.CrashLog
-                .install(this) // kuma3: local crash log (ACRA stays off)
-        }
         if (!setupAnkiDroidApp()) {
             return
         }
@@ -205,6 +201,12 @@ open class AnkiDroidApp :
         initializeAnalytics()
         // Last in the UncaughtExceptionHandlers chain is our filter service
         ThrowableFilterService.initialize()
+        // kuma3: local crash log (ACRA stays off). Installed last so it runs first: ACRA kills the
+        // process without chaining, so a handler installed before it never sees the crash.
+        if (!isAcraSenderProcess()) {
+            com.ichi2.anki.kuma3.CrashLog
+                .install(this)
+        }
 
         applicationScope.launch {
             Timber.i("AnkiDroidApp: listing debug info")

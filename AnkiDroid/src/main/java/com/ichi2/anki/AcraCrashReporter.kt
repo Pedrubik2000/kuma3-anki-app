@@ -124,7 +124,7 @@ private object AcraCrashReporter : CrashReporter {
                     HttpSenderConfigurationBuilder()
                         .withHttpMethod(HttpSender.Method.PUT)
                         .withUri(BuildConfig.ACRA_URL)
-                        .withEnabled(true)
+                        .withEnabled(false) // kuma3: never send to AnkiDroid's server
                         .build(),
                     ToastConfigurationBuilder()
                         .withText(toastText)
@@ -211,6 +211,10 @@ private object AcraCrashReporter : CrashReporter {
         // Disable crash reporting
         setReportingMode(FEEDBACK_REPORT_NEVER)
         prefs.edit { putString(FEEDBACK_REPORT_KEY, FEEDBACK_REPORT_NEVER) }
+        // kuma3: ACRA reads its switch from the "acra" prefs (withSharedPreferencesName below), not from the
+        // default prefs setReportingMode writes, so it stayed on and showed its "Report" dialog. Disable it there.
+        application.getSharedPreferences("acra", Context.MODE_PRIVATE).edit { putBoolean(ACRA.PREF_DISABLE_ACRA, true) }
+        dialogEnabled = false
         // Use a wider logcat filter in case crash reporting manually re-enabled
         logcatArgs = arrayOf("-t", "1500", "-v", "long", "ACRA:S")
         createAcraCoreConfigBuilder()
