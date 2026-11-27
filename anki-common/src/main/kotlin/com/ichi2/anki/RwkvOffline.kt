@@ -17,6 +17,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import anki.deck_config.RwkvProfileSettings
 import com.ichi2.anki.ankicommon.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -219,9 +220,17 @@ object RwkvOffline {
                     while (true) {
                         delay(READY_POLL_MS)
                         val status =
-                            CollectionManager.withOpenColOrNull {
-                                backend.rwkvOfflineInstantPassStep(restart = false, statusOnly = true)
-                            } ?: return@launch
+                            try {
+                                CollectionManager.withOpenColOrNull {
+                                    backend.rwkvOfflineInstantPassStep(restart = false, statusOnly = true)
+                                } ?: return@launch
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                // an uncaught error here, on this scope, kills the app
+                                Timber.w(e, "RWKV status failed; stopped waiting")
+                                return@launch
+                            }
                         if (status.available) {
                             Timber.i("RWKV ready: refreshing the deck counts")
                             readyFlow.tryEmit(Unit)
