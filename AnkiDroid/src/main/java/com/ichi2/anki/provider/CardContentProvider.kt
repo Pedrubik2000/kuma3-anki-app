@@ -190,6 +190,12 @@ class CardContentProvider : ContentProvider() {
         }
 
         /**
+         * kuma3: this api URI under the authority [caller] used (kuma3 Anki's own, not AnkiDroid's), so
+         * the URI an insert returns can be queried back by clients like AddContentApi.
+         */
+        private fun Uri.under(caller: Uri): Uri = buildUpon().authority(caller.authority).build()
+
+        /**
          * kuma3: the URIs under [authority]. The api module is built with AnkiDroid's names, but the
          * provider is declared as `${applicationId}.flashcards`, so an app with its own id (kuma3 Anki:
          * io.github.pedrubik2000.kuma3) registers its own authority too (from [onCreate]).
@@ -1079,7 +1085,7 @@ class CardContentProvider : ContentProvider() {
                     // Add to collection
                     col.addNote(newNote, newNote.notetype.did)
 
-                    Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI, newNote.id.toString())
+                    Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI.under(uri), newNote.id.toString())
                 }
                 NOTES_ID -> throw IllegalArgumentException("Not possible to insert note with specific ID")
                 NOTES_ID_CARDS, NOTES_ID_CARDS_ORD -> throw IllegalArgumentException(
@@ -1150,7 +1156,7 @@ class CardContentProvider : ContentProvider() {
 
                         // Get the mid and return a URI
                         val noteTypeId = newNoteType.id.toString()
-                        Uri.withAppendedPath(FlashCardsContract.Model.CONTENT_URI, noteTypeId)
+                        Uri.withAppendedPath(FlashCardsContract.Model.CONTENT_URI.under(uri), noteTypeId)
                     } catch (e: JSONException) {
                         Timber.e(e, "Could not set a field of new note type %s", noteTypeName)
                         null
@@ -1232,7 +1238,7 @@ class CardContentProvider : ContentProvider() {
                         deck.description = deckDesc
                         col.decks.save(deck)
                     }
-                    Uri.withAppendedPath(FlashCardsContract.Deck.CONTENT_ALL_URI, did.toString())
+                    Uri.withAppendedPath(FlashCardsContract.Deck.CONTENT_ALL_URI.under(uri), did.toString())
                 }
                 DECK_SELECTED -> throw IllegalArgumentException("Selected deck can only be queried and updated")
                 DECKS_ID -> throw IllegalArgumentException("Not possible to insert deck with specific ID")
